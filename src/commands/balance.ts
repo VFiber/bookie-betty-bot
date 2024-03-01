@@ -1,5 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { betApi, botConfig } from '../bot';
+import { botConfig, getBetApi } from '../bot';
+
+const betApi = await getBetApi();
 
 export const data = new SlashCommandBuilder()
     .setName('balance')
@@ -8,6 +10,8 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
     const user = interaction.user;
     const userName = user.username;
+
+    console.log(user);
 
     const gambler = await betApi.getGambler(userName);
 

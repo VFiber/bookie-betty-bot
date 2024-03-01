@@ -1,19 +1,61 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, codeBlock, SlashCommandBuilder } from "discord.js";
-import { BetApi, isWinnerType, MessageFormatter, Winner } from '../bet';
+import { isWinnerType, MessageFormatter, Winner } from '../bet';
 import {
     AutocompleteOption,
-    betApi,
     botConfig,
-    filterMatchesForAutoComplete,
+    filterMatchesForAutoComplete, getBetApi,
     getWinnerAutocompleteForMatch,
     ParameterAutocompleteMap
 } from '../bot';
 
-const api: BetApi = betApi;
+const betApi = await getBetApi();
 
 export const data = new SlashCommandBuilder()
     .setName('matchadmin')
     .setDescription('Manages or displays matches.')
+    .addSubcommandGroup(subcommand =>
+        subcommand.setName('championship')
+            .setDescription('Displays the current championship')
+            .addSubcommand(subcommand =>
+                subcommand.setName('create')
+                    .setDescription('Creates a new championship')
+                    .addStringOption(option =>
+                        option.setName('name')
+                            .setDescription('The name of the championship')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option.setName('teams')
+                            .setDescription('The teams in the championship, separated by comma. eg: "Team One,Team Two,Team Three"')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand.setName('list')
+                    .setDescription('Lists all championships')
+            )
+            .addSubcommand(subcommand =>
+                subcommand.setName('show')
+                    .setDescription('Displays the current championship')
+                    .addIntegerOption(option =>
+                        option.setName('championship_id')
+                            .setDescription('The championship ID')
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand.setName('add_team')
+                    .setDescription('Adds a team to the [default] championship')
+                    .addStringOption(option =>
+                        option.setName('team')
+                            .setDescription('The team name')
+                            .setRequired(true)
+                    )
+                    .addIntegerOption(option =>
+                        option.setName('championship_id')
+                            .setDescription('The championship ID')
+                    )
+            )
+    )
     .addSubcommand(subcommand =>
         subcommand.setName('create')
             .setDescription('Creates a new match')
@@ -110,6 +152,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply();
 
+    if (interaction.options.getSubcommandGroup() === 'championship') {
+        switch (interaction.options.getSubcommand()) {
+            case 'create':
+                return await createChampionship(interaction);
+            case 'list':
+                return await interaction.editReply("List of championships, de az még nincs");
+            case 'show':
+                return await interaction.editReply("Show championship, de az még nincs");
+            case 'add_team':
+                return await interaction.editReply("Az még nincs.");
+        }
+    }
+
     switch (interaction.options.getSubcommand()) {
         case 'create':
             return await createMatch(interaction);
@@ -135,14 +190,14 @@ async function resultMatchIdAutocomplete(interaction: AutocompleteInteraction): 
     }
 
     const filterString = interaction.options.getFocused();
-    let matches = await api.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
+    let matches = await betApi.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
 
     return filterMatchesForAutoComplete(matches, filterString);
 }
 
 async function autocomplete_teams(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     console.log("Autocomplete teams", interaction.options);
-    let teams = await api.getTeams(1);
+    let teams = await betApi.getTeams(1);
 
     const focused = interaction.options.getFocused(true);
 
@@ -169,8 +224,30 @@ async function autocomplete_teams(interaction: AutocompleteInteraction): Promise
 
 async function autcompleteWinner(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     let matchId = interaction.options.getInteger('match_id', true);
-    let match = await api.getMatch(matchId);
+    let match = await betApi.getMatch(matchId);
     return getWinnerAutocompleteForMatch(match);
+}
+
+async function createChampionship(interaction: ChatInputCommandInteraction) {
+    const name = interaction.options.getString('name', true);
+    const teams = interaction.options.getString('teams', true);
+
+    const teamList = teams.split(',');
+
+    const championship = await betApi.createChampionship(name, teamList);
+
+    if (!championship) {
+        return await interaction.editReply("Hiba történt a bajnokság létrehozása közben.");
+    }
+
+    const reply =  MessageFormatter.createChampionshipReply(championship)
+
+    return await interaction.editReply(
+        {
+            ...reply,
+            content: "Bajnokság létrehozva: \n" + reply.content
+        }
+    );
 }
 
 async function createMatch(interaction: ChatInputCommandInteraction) {
@@ -183,7 +260,7 @@ async function createMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply(executedCommand + "Hiányzó csapatnév:" + (teamA ? " team_b" : " team_a"));
     }
 
-    const allowedTeams = await api.getTeams(1);
+    const allowedTeams = await betApi.getTeams(1);
 
     const teamAFound = allowedTeams.includes(teamA);
     const teamBFound = allowedTeams.includes(teamB);
@@ -200,7 +277,7 @@ async function createMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply(executedCommand);
     }
 
-    const match = await api.createMatch({
+    const match = await betApi.createMatch({
         championshipId: 1,
         teamA,
         teamB
@@ -215,7 +292,7 @@ async function createMatch(interaction: ChatInputCommandInteraction) {
 
 async function deleteMatch(interaction: ChatInputCommandInteraction) {
     const match_id = interaction.options.getInteger('match_id', true);
-    const match = await api.getMatch(match_id);
+    const match = await betApi.getMatch(match_id);
 
     if (!match) {
         return await interaction.editReply("Nem található ilyen mérkőzés: #" + match_id);
@@ -225,7 +302,7 @@ async function deleteMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply("A mérkőzés eredménye már be van állítva, nem törölhető.");
     }
 
-    const deleted = await api.removeMatch(match.id);
+    const deleted = await betApi.removeMatch(match.id);
 
     if (!deleted) {
         return await interaction.editReply("Hiba történt a mérkőzés törlése közben.");
@@ -236,7 +313,7 @@ async function deleteMatch(interaction: ChatInputCommandInteraction) {
 
 async function lockMatch(interaction: ChatInputCommandInteraction) {
     const match_id = interaction.options.getInteger('match_id', true);
-    const match = await api.getMatch(match_id);
+    const match = await betApi.getMatch(match_id);
     const timestamp_string = interaction.options.getString('timestamp');
     const timestamp = timestamp_string ? new Date(timestamp_string) : new Date();
 
@@ -259,13 +336,13 @@ async function lockMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply("A mérkőzés kezdési időpontja után nem lehet a mérkőzést zárolni.");
     }
 
-    const updatedMatch = await api.lockMatch(match.id, timestamp);
+    const updatedMatch = await betApi.lockMatch(match.id, timestamp);
 
     if (!updatedMatch) {
         return await interaction.editReply("Hiba történt a mérkőzés zárolása közben.");
     }
 
-    const bets = await api.getBets(match_id);
+    const bets = await betApi.getBets(match_id);
 
     return await interaction.editReply({
         ...MessageFormatter.createMatchReply(updatedMatch, bets),
@@ -278,7 +355,7 @@ async function setMatchResult(interaction: ChatInputCommandInteraction) {
     const matchDateTime = dateTimeString ? new Date(dateTimeString) : new Date();
 
     const match_id = interaction.options.getInteger('match_id', true);
-    const match = await api.getMatch(match_id);
+    const match = await betApi.getMatch(match_id);
 
     let executedCommand = `/matchadmin result match_id:${interaction.options.getInteger('match_id', true)} winner:${interaction.options.getString('winner', true)} result_team_a:${interaction.options.getInteger('result_team_a', true)} result_team_b:${interaction.options.getInteger('result_team_b', true)} match_datetime:${dateTimeString || ''} \n`;
 
@@ -309,7 +386,7 @@ async function setMatchResult(interaction: ChatInputCommandInteraction) {
 
     // FIXME: tranzakció kezdete
 
-    const updatedMatch = await api.setMatchResult({
+    const updatedMatch = await betApi.setMatchResult({
         ...match,
         resultA: resultA,
         resultB: resultB,
@@ -324,7 +401,7 @@ async function setMatchResult(interaction: ChatInputCommandInteraction) {
 
     let content = executedCommand + "## A mérkőzés eredménye: " + updatedMatch.teamA + " vs " + updatedMatch.teamB + " - " + updatedMatch.resultA + ":" + updatedMatch.resultB + " - " + (updatedMatch.winner === 'DRAW' ? 'Döntetlen' : `Győztes: ${updatedMatch.winner === 'A' ? updatedMatch.teamA : updatedMatch.teamB}`);
 
-    const bets = await api.getBets(match_id);
+    const bets = await betApi.getBets(match_id);
 
     console.log(bets);
 

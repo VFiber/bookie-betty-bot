@@ -1,16 +1,17 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 
-import { BetApi, isWinnerType, MessageFormatter, Winner } from '../bet';
+import { isWinnerType, MessageFormatter, Winner } from '../bet';
+// @ts-ignore
 import {
     AutocompleteOption,
-    betApi,
     botConfig,
     filterMatchesForAutoComplete,
+    getBetApi,
     getWinnerAutocompleteForMatch,
     ParameterAutocompleteMap
 } from '../bot';
 
-const api: BetApi = betApi;
+const betApi = await getBetApi();
 
 export const data = new SlashCommandBuilder()
     .setName('match')
@@ -55,7 +56,7 @@ export const autocompleteMap: ParameterAutocompleteMap = {
         }
 
         const filterString = interaction.options.getFocused();
-        let matches = await api.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
+        let matches = await betApi.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
 
         return filterMatchesForAutoComplete(matches, filterString);
     }
@@ -76,7 +77,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 async function autocompleteBetWinner(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     let matchId = interaction.options.getInteger('match_id', true);
 
-    let match = await api.getMatch(matchId);
+    let match = await betApi.getMatch(matchId);
     return getWinnerAutocompleteForMatch(match);
 }
 
@@ -114,7 +115,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
     // alapvető szintaktikai faszságok kiszűrve, jöhet az erősebb validáció
     await interaction.deferReply({ephemeral: true});
 
-    const gambler = await api.getGambler(interaction.user.username);
+    const gambler = await betApi.getGambler(interaction.user.username) || await betApi.createGambler(interaction.user);
 
     if (!gambler) {
         return await interaction.editReply("Nem tom te ki vagy és nem tudlak felvenni, mint fogadó. Szólj a gazdámnak, mert valami gebasz van.");
@@ -124,7 +125,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply(`Egyenleged: $${gambler.balance}.- Nem tudsz $${bet_amount}.- téttel fogadni.`);
     }
 
-    const match = await api.getMatch(match_id);
+    const match = await betApi.getMatch(match_id);
 
     if (!match) {
         return await interaction.editReply(executedCommand + "\n Nem található ilyen mérkőzés: #" + match_id);
@@ -151,7 +152,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
         });
     }
 
-    const bet = await api.createBet({
+    const bet = await betApi.createBet({
         matchId: match_id,
         username: interaction.user.username,
         betDateTime: new Date(),
@@ -163,10 +164,10 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply(executedCommand + "\n Belső hiba, nem tudtam létrehozni a fogadást. Szólj Fiber-nek, valami nem kerek.");
     }
 
-    const bets = await api.getBets(match_id);
+    const bets = await betApi.getBets(match_id);
 
     const winnerString = winner === 'DRAW' ? 'Döntetlen' : "Győztes: " + (winner === 'A' ? match.teamA : match.teamB);
-    const newBalance = await api.getGambler(interaction.user.username).then(gambler => gambler?.balance);
+    const newBalance = await betApi.getGambler(interaction.user.username).then(gambler => gambler?.balance);
     const confirmContent = executedCommand +
         `## Sikeres fogadás - ${winnerString} - Összeg: $${bet_amount}.- \n` +
         `### Fogadás utáni egyenleged: $${newBalance}.-`;
@@ -181,7 +182,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
 async function showMatch(interaction: ChatInputCommandInteraction) {
     const match_id = interaction.options.getInteger('match_id', true);
 
-    const match = await api.getMatch(match_id);
+    const match = await betApi.getMatch(match_id);
 
     if (!match) {
         const embed = new EmbedBuilder()
@@ -193,7 +194,7 @@ async function showMatch(interaction: ChatInputCommandInteraction) {
         });
     }
 
-    const bets = await api.getBets(match_id);
+    const bets = await betApi.getBets(match_id);
 
     return await interaction.editReply(MessageFormatter.createMatchReply(match, bets));
 }

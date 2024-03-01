@@ -2,7 +2,23 @@ import { ChampionshipWithId, Match, MatchBet, MatchWithBets, MatchWithId } from 
 import { EmbedBuilder, quote } from 'discord.js';
 
 export class MessageFormatter {
-    static createShortEmbedFieldsFromMatch(championsship: ChampionshipWithId, match: Match | MatchWithBets, bets: MatchBet[] = []): {
+
+    static createEmbedFromMatchList(championship: ChampionshipWithId, matches: MatchWithBets[]): EmbedBuilder {
+        const embed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .setTitle(championship.name)
+            .setDescription("Mérkőzések");
+
+        matches.forEach((match: MatchWithBets) => {
+            embed.addFields(MessageFormatter.createShortEmbedFieldsFromMatch(match, match.bets));
+        });
+
+        embed.setTimestamp();
+
+        return embed;
+    }
+
+    static createShortEmbedFieldsFromMatch(match: Match | MatchWithBets, bets: MatchBet[] = []): {
         name: string,
         value: string,
         inline?: boolean
@@ -145,6 +161,14 @@ export class MessageFormatter {
         return {
             content: `Mérkőzés #${match.id}` + content,
             embeds: [embed]
+        }
+    }
+
+    static createChampionshipReply(championship: ChampionshipWithId) {
+        let content = `### Bajnokság: \#${championship.id} - ${championship.name} `
+            + (championship.teams ? `bajnokságban résztvevő csapatok: ${championship?.teams.join(', ')}` : 'Nincs résztvevő csapat.');
+        return {
+            content
         }
     }
 }

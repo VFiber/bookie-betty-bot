@@ -1,11 +1,11 @@
 // TODO: mivel ugyanazokat a paramétereket használjuk mindenhol, így a név lehet típus és azokat kiszolgálhatja egy-egy globális Autocomplete object -> function map
 import { AutocompleteInteraction } from 'discord.js';
 import { AutocompleteOption, ParameterAutocompleteMap } from './bot-types';
-import { BetApi, Match, MatchWithId } from '../bet';
-import { betApi } from './environment-setup';
+import { BetAPI, Match, MatchWithId } from '../bet';
 import { botConfig } from './botConfig';
+import { getBetApi } from './environment-setup';
 
-const api: BetApi = betApi;
+const api: BetAPI = await getBetApi();
 
 async function matchIdAutocomplete(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     const filterString = interaction.options.getFocused().toLowerCase();

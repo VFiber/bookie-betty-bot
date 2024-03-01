@@ -1,8 +1,9 @@
-import { botConfig } from '../../../bot/botConfig';
-import { BetApi } from '../bet-api.interface';
+import { botConfig } from '../../../bot';
+import { BetAPI } from '../bet-api.interface';
 import { ChampionshipWithId, Gambler, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
+import { User } from 'discord.js';
 
-export class MockBetApi implements BetApi {
+export class MockBetApi implements BetAPI {
     private championships: ChampionshipWithId[] = [
         {
             id: 1,
@@ -224,9 +225,9 @@ export class MockBetApi implements BetApi {
         return this.championships.find(championship => championship.id === championshipId)?.teams || [];
     }
 
-    async createGambler(username: string): Promise<Gambler> {
+    async createGambler(user: User): Promise<Gambler> {
         const gambler: Gambler = {
-            username,
+            ...user,
             balance: botConfig.DEFAULT_GAMBLING_AMOUNT,
             betCount: 0
         };

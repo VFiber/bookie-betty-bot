@@ -1,6 +1,7 @@
 import { ChampionshipWithId, Gambler, Match, MatchBet, MatchBetWithId, MatchWithId } from './models';
+import { User } from 'discord.js';
 
-export interface BetApi {
+export interface BetAPI {
 
     /**
      * Create a new championship with name & teams
@@ -58,13 +59,13 @@ export interface BetApi {
      * Set the result of a match, distributes bets, etc.
      * @param match
      */
-    setMatchResult(match: MatchWithId): Promise<MatchWithId>;
+    setMatchResult(match: MatchWithId): Promise<MatchWithId|false>;
 
     /**
      * Create a new user with a starting balance
      * @param username
      */
-    createGambler(username: string): Promise<Gambler>;
+    createGambler(username: User): Promise<Gambler>;
 
     /**
      * Get a user by username
@@ -83,26 +84,19 @@ export interface BetApi {
      * Create a new bet
      * @param matchBet
      */
-    createBet(matchBet: MatchBet): Promise<MatchBet>;
-
-    /**
-     * Finalize a bet, set the earnings
-     * @param bet_id
-     * @param eranings
-     */
-    finalizeBet(bet_id: number, eranings: number): Promise<MatchBetWithId>
+    createBet(matchBet: MatchBet): Promise<MatchBet|false>;
 
     /**
      * Get all bets of a match
      * @param matchId
      */
-    getBets(matchId: number | number[]): Promise<MatchBet[]>;
+    getBets(matchId: number | number[]): Promise<MatchBetWithId[]>;
 
     /**
      * Get all bets of a user
      * @param username
      */
-    getBets(username: string): Promise<MatchBet[]>;
+    getBets(username: string): Promise<MatchBetWithId[]>;
 
     /**
      * Withdraw a bet

@@ -1,3 +1,4 @@
+import { User } from 'discord.js';
 
 export interface Championship {
     id?: number;
@@ -98,8 +99,7 @@ export interface MatchWithBets extends Match {
     bets: MatchBet[];
 }
 
-export interface Gambler {
-    username: string;
+export interface Gambler extends User {
     balance: number;
     betCount: number;
 }

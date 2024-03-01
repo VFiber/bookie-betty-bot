@@ -1,7 +1,9 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 
-import { BetApi, MatchWithBets, MessageFormatter } from '../bet';
-import { betApi, botConfig } from '../bot';
+import { BetAPI, MatchWithBets, MessageFormatter } from '../bet';
+import { botConfig, getBetApi } from '../bot';
+
+const betApi = await getBetApi();
 
 export const data = new SlashCommandBuilder()
     .setName('matches')
@@ -13,7 +15,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-    const api: BetApi = betApi;
+    const api: BetAPI = betApi;
 
     const championshipId = interaction.options.getInteger('championship_id') || botConfig.DEFAULT_CHAMPIONSHIP_ID;
     const championShip = await api.getChampionship(championshipId);
@@ -42,19 +44,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
     );
 
-
-    const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle("Mérkőzések")
-        .setDescription(championShip.name + " mérkőzései");
-
-    matchesWithBets.forEach((match: MatchWithBets) => {
-        embed.addFields(MessageFormatter.createShortEmbedFieldsFromMatch(championShip, match, match.bets));
-    });
-
-    embed.setTimestamp();
-
     return await interaction.editReply({
-        embeds: [embed]
+        embeds: [MessageFormatter.createEmbedFromMatchList(championShip, matchesWithBets)]
     });
 }

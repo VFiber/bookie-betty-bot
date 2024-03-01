@@ -8,10 +8,13 @@ import {
     Interaction,
     InteractionType
 } from "discord.js";
-import { AutocompleteOption, deployCommands, ParameterAutocompleteMap, redeployGuildCommands } from './bot';
+import { AutocompleteOption, deployCommands, getBetApi, ParameterAutocompleteMap, redeployGuildCommands } from './bot';
 import { commands } from './commands';
 import { botConfig } from './bot/botConfig';
 import { parameterAutocompleteMap } from './bot/global-autocomplete-parameters';
+
+// példányosítja a DB-t, hogy legalább egyszer lefusson
+const betApiInstance = getBetApi();
 
 const client = new Client({
     intents: ["Guilds", "GuildMessages", "DirectMessages"]

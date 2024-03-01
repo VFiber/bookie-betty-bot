@@ -1,14 +1,34 @@
 import { botConfig } from './botConfig';
-import { BetApi } from '../bet';
+import { BetAPI, BetApiSqlize } from '../bet';
 import { MockBetApi } from '../bet';
+import { Sequelize } from 'sequelize-typescript';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-function getBetApiInstance() {
+const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
+const __dirname = path.dirname(__filename); // get the name of the directory
+
+const modelPath = __dirname + '/../bet/api/interfaces/sequelize-models/*.ts';
+
+async function getBetApiInstance(): Promise<BetAPI> {
     switch (botConfig.PERSISTENCE_TYPE) {
         case 'SQL':
             if (botConfig.SQLITE_FILE) {
-                // TODO: setup sqlite
-                return new MockBetApi();
+
+                const sqlize = new Sequelize({
+                    dialect: 'sqlite',
+                    storage: botConfig.SQLITE_FILE
+                });
+
+                try {
+                    await sqlize.authenticate();
+                } catch (error) {
+                    console.error(`Unable to connect to the SQLite database "${botConfig.SQLITE_FILE}":`, error);
+                }
+
+                return await (new BetApiSqlize(sqlize)).init();
+
             } else if (botConfig.SQL_HOST && botConfig.SQL_PORT && botConfig.SQL_USER && botConfig.SQL_PASSWORD && botConfig.SQL_DATABASE) {
                 // TODO: setup sql
                 return new MockBetApi();
@@ -22,4 +42,12 @@ function getBetApiInstance() {
     }
 }
 
-export const betApi: BetApi = getBetApiInstance();
+let betApi: BetAPI;
+
+export async function getBetApi() {
+    if (betApi) {
+        return betApi;
+    }
+    betApi = await getBetApiInstance();
+    return betApi;
+}
