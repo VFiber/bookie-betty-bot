@@ -1,8 +1,14 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 
-import { betApi, BetApi, isWinnerType, Winner } from '../bet-api';
-import { MessageFormatter } from '../message-formatter';
-import { AutocompleteOption, ParameterAutocompleteMap } from '../bot-types';
+import { BetApi, isWinnerType, MessageFormatter, Winner } from '../bet';
+import {
+    AutocompleteOption,
+    betApi,
+    botConfig,
+    filterMatchesForAutoComplete,
+    getWinnerAutocompleteForMatch,
+    ParameterAutocompleteMap
+} from '../bot';
 
 const api: BetApi = betApi;
 
@@ -43,7 +49,16 @@ export const data = new SlashCommandBuilder()
 
 export const autocompleteMap: ParameterAutocompleteMap = {
     'winner': autocompleteBetWinner,
-    'match_id': autcompleteMatchId
+    'match_id': async (interaction: AutocompleteInteraction) => {
+        if (interaction.options.getSubcommand() !== 'bet') {
+            return false;
+        }
+
+        const filterString = interaction.options.getFocused();
+        let matches = await api.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
+
+        return filterMatchesForAutoComplete(matches, filterString);
+    }
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -58,84 +73,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 }
 
-async function autcompleteMatchId(interaction: AutocompleteInteraction): Promise<AutocompleteOption[] | false> {
-    if (interaction.options.getSubcommand() !== 'bet') {
-        return false;
-    }
-
-    const focusedValue = interaction.options.getFocused();
-
-    let matches = await api.getMatches(1, true);
-
-    if (focusedValue !== '') {
-        matches = matches.filter(
-            (match) => {
-                const stringMatchId = String(match.id);
-                // teljes egyezés
-                if (stringMatchId === focusedValue) {
-                    return true;
-                }
-                // eleje egyezik
-                if (stringMatchId.startsWith(focusedValue)) {
-                    return true;
-                }
-
-                // bármely csapat első karaktereivel egyezik
-                if (match.teamA.toLowerCase().startsWith(focusedValue)) {
-                    return true;
-                }
-                if (match.teamB.toLowerCase().startsWith(focusedValue)) {
-                    return true;
-                }
-            }
-        );
-    }
-
-    return matches.map(match => (
-            {
-                name: `#${match.id} - ${match.teamA} vs ${match.teamB}`,
-                value: match.id
-            }
-        )
-    );
-}
-
 async function autocompleteBetWinner(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     let matchId = interaction.options.getInteger('match_id', true);
 
     let match = await api.getMatch(matchId);
-
-    if (!match) {
-        return [
-            {
-                name: "Team A",
-                value: "A"
-            },
-            {
-                name: "Team B",
-                value: "B"
-            },
-            {
-                name: "Döntetlen",
-                value: "DRAW"
-            }
-        ];
-    }
-
-    return [
-        {
-            name: match.teamA,
-            value: "A"
-        },
-        {
-            name: match.teamB,
-            value: "B"
-        },
-        {
-            name: "Döntetlen",
-            value: "DRAW"
-        }
-    ];
+    return getWinnerAutocompleteForMatch(match);
 }
 
 async function betMatch(interaction: ChatInputCommandInteraction) {

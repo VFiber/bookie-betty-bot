@@ -1,4 +1,4 @@
-import { ChampionshipWithId, Match, MatchBet, MatchWithBets, MatchWithId } from './bet-api';
+import { ChampionshipWithId, Match, MatchBet, MatchWithBets, MatchWithId } from './api';
 import { EmbedBuilder, quote } from 'discord.js';
 
 export class MessageFormatter {
@@ -108,7 +108,7 @@ export class MessageFormatter {
                 embed.addFields(
                     {
                         name: "Kérjük tegyék meg tétjeiket!",
-                        value: `A fogadásokat lezárásig még ${Math.floor((match.betLockDateTime.getTime() - new Date().getTime()) / 1000 / 60)} perc van hátra.`
+                        value: `A fogadások lezárásáig még ${Math.floor((match.betLockDateTime.getTime() - new Date().getTime()) / 1000 / 60)} perc van hátra.`
                     }
                 );
             } else {

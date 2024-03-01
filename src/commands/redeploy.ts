@@ -6,5 +6,5 @@ export const data = new SlashCommandBuilder()
 
 
 export async function execute(interaction: CommandInteraction) {
-
+    return await interaction.reply({ephemeral: true, content: "And who the F are you?"});
 }

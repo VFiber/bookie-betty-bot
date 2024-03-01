@@ -1,18 +1,17 @@
 import {
+    ApplicationCommandOptionType,
     AutocompleteInteraction,
     ChatInputCommandInteraction,
     Client,
     Events,
     Guild,
     Interaction,
-    InteractionType,
-    ApplicationCommandOptionType
+    InteractionType
 } from "discord.js";
-import { deployCommands, redeployGuildCommands } from './deploy-commands';
+import { AutocompleteOption, deployCommands, ParameterAutocompleteMap, redeployGuildCommands } from './bot';
 import { commands } from './commands';
-import { config } from './config';
-import { parameterAutocompleteMap } from './global-autocomplete-parameters';
-import { AutocompleteOption, ParameterAutocompleteMap } from './bot-types';
+import { botConfig } from './bot/botConfig';
+import { parameterAutocompleteMap } from './bot/global-autocomplete-parameters';
 
 const client = new Client({
     intents: ["Guilds", "GuildMessages", "DirectMessages"]
@@ -24,17 +23,17 @@ function isCommandInteraction(interaction: Interaction): interaction is ChatInpu
     return interaction.isCommand();
 }
 
-client.once("ready", async () => {
+client.once(Events.ClientReady, async () => {
     console.log("Discord bot is ready! 🤖");
 });
 
-client.on("guildCreate", async (guild) => {
+client.on(Events.GuildCreate, async (guild) => {
     console.log("Joined a new guild! Deploying commands...");
     await deployCommands({guildId: guild.id});
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    console.log(InteractionType[interaction.type]);
+    console.debug(InteractionType[interaction.type]);
     if (!isCommandInteraction(interaction) && !interaction.isAutocomplete()) {
         return;
     }
@@ -45,7 +44,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     const {commandName} = interaction;
 
-    if (commandName === 'redeploy' && myGuild) {
+    if (commandName === 'redeploy' && myGuild && interaction.user.username === botConfig.ADMIN_USERNAME) {
         await interaction.deferReply({ephemeral: true});
         await redeployGuildCommands(myGuild);
         await interaction.editReply({content: "Commands redeployed!"});
@@ -108,7 +107,7 @@ async function handleAutocompleteInteraction(interaction: AutocompleteInteractio
 }
 
 client.on(Events.GuildAvailable, async (guild) => {
-    console.log("Guild is available!");
+    console.debug("Guild is available!");
     myGuild = guild;
 });
 
@@ -116,6 +115,6 @@ client.on(Events.Error, (error) => {
     console.error("An error occurred:", error);
 });
 
-client.login(config.DISCORD_TOKEN);
+client.login(botConfig.DISCORD_TOKEN);
 
 

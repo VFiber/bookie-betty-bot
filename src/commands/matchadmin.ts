@@ -1,9 +1,13 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-
-import { betApi, BetApi } from '../bet-api';
-import { MessageFormatter } from '../message-formatter';
-import { AutocompleteOption, ParameterAutocompleteMap } from '../bot-types';
-import { config } from '../config';
+import { AutocompleteInteraction, ChatInputCommandInteraction, codeBlock, SlashCommandBuilder } from "discord.js";
+import { BetApi, isWinnerType, MessageFormatter, Winner } from '../bet';
+import {
+    AutocompleteOption,
+    betApi,
+    botConfig,
+    filterMatchesForAutoComplete,
+    getWinnerAutocompleteForMatch,
+    ParameterAutocompleteMap
+} from '../bot';
 
 const api: BetApi = betApi;
 
@@ -38,7 +42,7 @@ export const data = new SlashCommandBuilder()
     )
     .addSubcommand(subcommand =>
         subcommand.setName('lock')
-            .setDescription('Locks a match for a given timestamp / effective immediately')
+            .setDescription('Closes the match bets, removes every bets placed after this time.')
             .addIntegerOption(option =>
                 option.setName('match_id')
                     .setAutocomplete(true)
@@ -63,19 +67,21 @@ export const data = new SlashCommandBuilder()
                 option.setName('winner')
                     .setDescription('The winner team')
                     .setRequired(true)
-                    .addChoices(
-                        {name: 'Team A', value: 'A'},
-                        {name: 'Team B', value: 'B'},
-                        {name: 'Döntetlen', value: 'DRAW'}
-                    )
+                    .setAutocomplete(true)
             )
             .addIntegerOption(option =>
-                option.setName('result_a')
-                    .setDescription('The result of team A')
+                option.setName('result_team_a')
+                    .setRequired(true)
+                    .setDescription('The result of team A (score/map score)')
             )
             .addIntegerOption(option =>
-                option.setName('result_b')
-                    .setDescription('The result of team B')
+                option.setName('result_team_b')
+                    .setRequired(true)
+                    .setDescription('The result of team B (score/map score)')
+            )
+            .addStringOption(option =>
+                option.setName('match_datetime')
+                    .setDescription('The date and time of the match in format: (Y-m-dTh:i:s) 2024-01-01T12:00')
             )
     )
     .addSubcommand(subcommand =>
@@ -94,7 +100,9 @@ export const data = new SlashCommandBuilder()
 
 export const autocompleteMap: ParameterAutocompleteMap = {
     'team_a': autocomplete_teams,
-    'team_b': autocomplete_teams
+    'team_b': autocomplete_teams,
+    'match_id': resultMatchIdAutocomplete,
+    'winner': autcompleteWinner
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -112,13 +120,24 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         case 'result':
             return await setMatchResult(interaction);
         case 'set_default_championship':
-            config.DEFAULT_CHAMPIONSHIP_ID = interaction.options.getInteger('championship_id', true);
-            return await interaction.editReply("Default championship set to: " + config.DEFAULT_CHAMPIONSHIP_ID);
+            botConfig.DEFAULT_CHAMPIONSHIP_ID = interaction.options.getInteger('championship_id', true);
+            return await interaction.editReply("Default championship set to: " + botConfig.DEFAULT_CHAMPIONSHIP_ID);
         case 'get_default_championship':
-            return await interaction.editReply("Default championship is: " + config.DEFAULT_CHAMPIONSHIP_ID);
+            return await interaction.editReply("Default championship is: " + botConfig.DEFAULT_CHAMPIONSHIP_ID);
         default:
             return await interaction.editReply("Nem található ilyen parancs");
     }
+}
+
+async function resultMatchIdAutocomplete(interaction: AutocompleteInteraction): Promise<AutocompleteOption[] | false> {
+    if (interaction.options.getSubcommand() !== 'result') {
+        return false;
+    }
+
+    const filterString = interaction.options.getFocused();
+    let matches = await api.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, true);
+
+    return filterMatchesForAutoComplete(matches, filterString);
 }
 
 async function autocomplete_teams(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
@@ -146,6 +165,12 @@ async function autocomplete_teams(interaction: AutocompleteInteraction): Promise
         name: teamName,
         value: teamName
     }));
+}
+
+async function autcompleteWinner(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
+    let matchId = interaction.options.getInteger('match_id', true);
+    let match = await api.getMatch(matchId);
+    return getWinnerAutocompleteForMatch(match);
 }
 
 async function createMatch(interaction: ChatInputCommandInteraction) {
@@ -189,13 +214,132 @@ async function createMatch(interaction: ChatInputCommandInteraction) {
 }
 
 async function deleteMatch(interaction: ChatInputCommandInteraction) {
-    return await interaction.editReply(interaction.commandName + ' ' + interaction.options.getSubcommand() + " még nincs, de ezt küldted: " + JSON.stringify(interaction.options));
+    const match_id = interaction.options.getInteger('match_id', true);
+    const match = await api.getMatch(match_id);
+
+    if (!match) {
+        return await interaction.editReply("Nem található ilyen mérkőzés: #" + match_id);
+    }
+
+    if (match?.winner) {
+        return await interaction.editReply("A mérkőzés eredménye már be van állítva, nem törölhető.");
+    }
+
+    const deleted = await api.removeMatch(match.id);
+
+    if (!deleted) {
+        return await interaction.editReply("Hiba történt a mérkőzés törlése közben.");
+    }
+
+    return await interaction.editReply("Mérkőzés törölve: #" + match.id + " - " + match.teamA + " vs " + match.teamB);
 }
 
 async function lockMatch(interaction: ChatInputCommandInteraction) {
-    return await interaction.editReply(interaction.commandName + ' ' + interaction.options.getSubcommand() + " még nincs, de ezt küldted: " + JSON.stringify(interaction.options));
+    const match_id = interaction.options.getInteger('match_id', true);
+    const match = await api.getMatch(match_id);
+    const timestamp_string = interaction.options.getString('timestamp');
+    const timestamp = timestamp_string ? new Date(timestamp_string) : new Date();
+
+    if (isNaN(timestamp.getTime())) {
+        return await interaction.editReply("Helytelen dátum formátum: " + timestamp_string + " . Aktuális idő formátuma: " + new Date().toISOString());
+    }
+
+    if (!match) {
+        return await interaction.editReply("Nem található ilyen mérkőzés: #" + match_id);
+    }
+
+    if (match?.winner) {
+        return await interaction.editReply({
+            ...MessageFormatter.createMatchReply(match),
+            content: "### A mérkőzés már le van zárva, nem zárolható újra."
+        });
+    }
+
+    if (match?.matchDateTime && timestamp > match.matchDateTime) {
+        return await interaction.editReply("A mérkőzés kezdési időpontja után nem lehet a mérkőzést zárolni.");
+    }
+
+    const updatedMatch = await api.lockMatch(match.id, timestamp);
+
+    if (!updatedMatch) {
+        return await interaction.editReply("Hiba történt a mérkőzés zárolása közben.");
+    }
+
+    const bets = await api.getBets(match_id);
+
+    return await interaction.editReply({
+        ...MessageFormatter.createMatchReply(updatedMatch, bets),
+        content: "### A mérkőzés utolsó fogadási időpontja: " + updatedMatch.betLockDateTime?.toLocaleString()
+    });
 }
 
 async function setMatchResult(interaction: ChatInputCommandInteraction) {
-    return await interaction.editReply(interaction.commandName + ' ' + interaction.options.getSubcommand() + " még nincs, de ezt küldted: " + JSON.stringify(interaction.options));
+    const dateTimeString = interaction.options.getString('match_datetime') || '';
+    const matchDateTime = dateTimeString ? new Date(dateTimeString) : new Date();
+
+    const match_id = interaction.options.getInteger('match_id', true);
+    const match = await api.getMatch(match_id);
+
+    let executedCommand = `/matchadmin result match_id:${interaction.options.getInteger('match_id', true)} winner:${interaction.options.getString('winner', true)} result_team_a:${interaction.options.getInteger('result_team_a', true)} result_team_b:${interaction.options.getInteger('result_team_b', true)} match_datetime:${dateTimeString || ''} \n`;
+
+    if (isNaN(matchDateTime.getTime())) {
+        return await interaction.editReply(executedCommand + "Helytelen dátum formátum: " + dateTimeString + " . Aktuális idő formátuma: " + new Date().toISOString());
+    }
+
+    if (!match) {
+        return await interaction.editReply(executedCommand + "Nem található ilyen mérkőzés: #" + match_id);
+    }
+
+    if (match?.winner) {
+        return await interaction.editReply({
+            ...MessageFormatter.createMatchReply(match),
+            content: executedCommand + "### A mérkőzés már lezajlott, utólag nem módosítható."
+        });
+    }
+
+    // lockolva van-e már a meccs, ha nincs, azt is be kell állítani
+
+    const resultA = interaction.options.getInteger('result_team_a', true);
+    const resultB = interaction.options.getInteger('result_team_b', true);
+    const winner = interaction.options.getString('winner', true) as Winner;
+
+    if (!isWinnerType(winner)) {
+        return await interaction.editReply(executedCommand + "Helytelen győztes formátum: " + winner + " . Lehetőséges értékek: A, B, DRAW");
+    }
+
+    // FIXME: tranzakció kezdete
+
+    const updatedMatch = await api.setMatchResult({
+        ...match,
+        resultA: resultA,
+        resultB: resultB,
+        winner: winner,
+        matchDateTime: matchDateTime
+    });
+
+    // FIXME: tranzakció vége
+    if (!updatedMatch) {
+        return await interaction.editReply(executedCommand + "Hiba történt a mérkőzés eredményének beállítása közben.");
+    }
+
+    let content = executedCommand + "## A mérkőzés eredménye: " + updatedMatch.teamA + " vs " + updatedMatch.teamB + " - " + updatedMatch.resultA + ":" + updatedMatch.resultB + " - " + (updatedMatch.winner === 'DRAW' ? 'Döntetlen' : `Győztes: ${updatedMatch.winner === 'A' ? updatedMatch.teamA : updatedMatch.teamB}`);
+
+    const bets = await api.getBets(match_id);
+
+    console.log(bets);
+
+    if (bets.length > 0) {
+        const winnersAndAmounts = bets.filter(bet => bet?.earnings && bet.earnings > 0).map(bet => `@${bet.username}: $+${bet.earnings}`).join(', ');
+        const loosersAndAmounts = bets.filter(bet => bet?.earnings && bet.earnings < 0).map(bet => `@${bet.username}: $${bet.earnings}`).join(', ');
+        content += `\n### Fogadások: ${bets.length} fogadás, összérték: ${bets.reduce((acc, bet) => acc + bet.amount, 0)}$ \n` +
+            codeBlock(`Nyertesek: ${winnersAndAmounts} \n`) +
+            codeBlock(`Vesztesek: ${loosersAndAmounts}`);
+    }
+
+    let finalizeReply = {
+        ...MessageFormatter.createMatchReply(updatedMatch, bets),
+        content
+    };
+
+    return await interaction.editReply(finalizeReply);
 }

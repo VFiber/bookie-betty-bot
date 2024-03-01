@@ -1,8 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 
-import { BetApi, betApi, MatchWithBets } from '../bet-api';
-import { MessageFormatter } from '../message-formatter';
-import { config } from '../config';
+import { BetApi, MatchWithBets, MessageFormatter } from '../bet';
+import { betApi, botConfig } from '../bot';
 
 export const data = new SlashCommandBuilder()
     .setName('matches')
@@ -16,7 +15,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
     const api: BetApi = betApi;
 
-    const championshipId = interaction.options.getInteger('championship_id') || config.DEFAULT_CHAMPIONSHIP_ID;
+    const championshipId = interaction.options.getInteger('championship_id') || botConfig.DEFAULT_CHAMPIONSHIP_ID;
     const championShip = await api.getChampionship(championshipId);
 
     if (!championShip) {

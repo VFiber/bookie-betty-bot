@@ -1,143 +1,6 @@
-import { config } from './config';
-
-export interface Championship {
-    id?: number;
-    name: string;
-    teams?: string[];
-}
-
-export interface ChampionshipWithId extends Omit<Championship, 'id'> {
-    id: number;
-}
-
-export type Winner = 'A' | 'B' | 'DRAW';
-
-export function isWinnerType(value: any): value is Winner {
-    return value === 'A' || value === 'B' || value === 'DRAW';
-}
-
-export interface Match {
-    championshipId: number;
-    /**
-     * Azonosító
-     */
-    id?: number;
-    /**
-     * Első csapat neve
-     */
-    teamA: string;
-    /**
-     * Második csapat neve
-     */
-    teamB: string;
-    /**
-     * Azon felhasználónevek listája, akik nem fogadhatnak az A team ellen
-     */
-    exludeBetAgainstTeamA?: string[];
-    /**
-     * Azon felhasználónevek listája, akik nem fogadhatnak a B team ellen
-     */
-    exludeBetAgainstTeamB?: string[];
-    /**
-     * A mérkőzés kezdésének időpontja
-     */
-    matchDateTime?: Date;
-    /**
-     * A fogadások lezárásának időpontja
-     */
-    betLockDateTime?: Date;
-    /**
-     * A mérkőzésen szerzett pontok
-     */
-    resultA?: number;
-    /**
-     * A mérkőzésen szerzett pontok
-     */
-    resultB?: number;
-    /**
-     * A mérkőzés eredménye, ha van
-     */
-    winner?: Winner;
-}
-
-export interface MatchWithId extends Omit<Match, 'id'> {
-    id: number;
-}
-
-export interface MatchBet {
-    /**
-     * @see Match.id
-     */
-    matchId: number;
-    /**
-     * Discord username
-     */
-    username: string;
-
-    /**
-     * A fogadás időpontja
-     */
-    betDateTime: Date;
-
-    /**
-     * Fogadott összeg
-     */
-    amount: number;
-    /**
-     * A várható kimenetel
-     */
-    winner: Match['winner'];
-
-    won?: boolean;
-}
-
-export interface MatchWithBets extends Match {
-    bets: MatchBet[];
-}
-
-export interface Gambler {
-    username: string;
-    balance: number;
-    betCount: number;
-}
-
-export interface GamblerHistory {
-    username: Gambler['username'];
-    MatchBet: MatchBet;
-}
-
-export let defaultChampionshipId: number;
-
-export interface BetApi {
-
-    createChampionship(name: string, teams: string[]): Promise<ChampionshipWithId | false>;
-
-    getChampionship(championshipId: number): Promise<ChampionshipWithId | undefined>;
-
-    getMatch(matchId: number): Promise<MatchWithId | undefined>;
-
-    getMatches(championshipId: number, openOnly: boolean): Promise<MatchWithId[]>;
-
-    createMatch(match: Match): Promise<MatchWithId | false>;
-
-    removeMatch(matchId: string): Promise<boolean>;
-
-    setMatchResult(match: Match): Promise<Match>;
-
-    createGambler(username: string): Promise<Gambler>;
-
-    getGambler(username: string): Promise<Gambler | undefined>;
-
-    createBet(matchBet: MatchBet): Promise<MatchBet>;
-
-    getBets(matchId: number | number[]): Promise<MatchBet[]>;
-
-    getBets(username: string): Promise<MatchBet[]>;
-
-    withdrawBet(matchBet: MatchBet): Promise<boolean>;
-
-    getTeams: (championshipId: number) => Promise<string[]>;
-}
+import { botConfig } from '../../../bot/botConfig';
+import { BetApi } from '../bet-api.interface';
+import { ChampionshipWithId, Gambler, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
 
 export class MockBetApi implements BetApi {
     private championships: ChampionshipWithId[] = [
@@ -186,17 +49,29 @@ export class MockBetApi implements BetApi {
         }
     ];
 
-    private matchBets: MatchBet[] = [
+    private matchBets: MatchBetWithId[] = [
         {
+            id: 1,
             username: 'vfiber',
             matchId: 1,
             amount: 10,
             betDateTime: new Date('2023-01-01T10:00:00Z'),
-            winner: 'B'
+            winner: 'B',
+            earnings: 20
         },
         {
+            id: 2,
             username: 'seemslegit',
             matchId: 1,
+            amount: 10,
+            betDateTime: new Date('2023-01-01T10:00:00Z'),
+            winner: 'A',
+            earnings: -10
+        },
+        {
+            id: 3,
+            username: 'vfiber',
+            matchId: 4,
             amount: 10,
             betDateTime: new Date('2023-01-01T10:00:00Z'),
             winner: 'A'
@@ -251,8 +126,15 @@ export class MockBetApi implements BetApi {
         return this.matches[length - 1];
     }
 
-    async removeMatch(matchId: string): Promise<boolean> {
-        const index = this.matches.findIndex(match => match.id === Number(matchId));
+    async lockMatch(match_id: number, betLockDateTime: Date): Promise<MatchWithId> {
+        const index = this.matches.findIndex(m => m.id === match_id);
+
+        this.matches[index].betLockDateTime = betLockDateTime;
+        return this.matches[index];
+    }
+
+    async removeMatch(matchId: number): Promise<boolean> {
+        const index = this.matches.findIndex(match => match.id === matchId);
         if (index !== -1) {
             this.matches.splice(index, 1);
             return Promise.resolve(true);
@@ -263,15 +145,59 @@ export class MockBetApi implements BetApi {
     async setMatchResult(match: MatchWithId): Promise<MatchWithId> {
         const index = this.matches.findIndex(m => m.id === match.id);
         this.matches[index] = match;
-        return Promise.resolve(match);
+
+        const matchBets = await this.getBets(match.id);
+        let winnerBets = matchBets.filter(bet => bet.winner === match.winner);
+
+        // összeszámoljuk az összes fogadás összegét, ekkora összeget kell arányosan szétosztani a nyertesek között
+        const totalBetAmount = matchBets.reduce((acc, bet) => acc + bet.amount, 0);
+        // összeszámoljuk a nyertesek összegét
+        const winnersAmount = winnerBets.reduce((acc, bet) => acc + bet.amount, 0);
+        // az arányosan szétosztandó összeg
+        const distributedAmount = totalBetAmount - winnersAmount;
+
+        await Promise.all(
+            winnerBets.map(async (bet) => {
+                //TODO: bank itt lecsíphet %-ot, ha akar
+                const ratio = bet.amount / winnersAmount;
+                bet.earnings = distributedAmount * ratio + bet.amount;
+                await this.finalizeBet(bet.id, bet.earnings);
+                await this.addToGamblerBalance(bet.username, bet.earnings);
+                return bet;
+            })
+        );
+
+        await Promise.all(
+            matchBets.filter(bet => bet.winner !== match.winner)
+                .map(async (bet) => {
+                        return await this.finalizeBet(bet.id, bet.amount * -1);
+                    }
+                )
+        );
+
+        return Promise.resolve(this.matches[index]);
     }
 
-    async getGambler(username: string): Promise<Gambler | undefined> {
+    async getGambler(username: string): Promise<Gambler> {
         return this.gamblers.find(gambler => gambler.username === username) || this.createGambler(username);
     }
 
+    async addToGamblerBalance(username: string, amount: number): Promise<boolean> {
+        const index = this.gamblers.findIndex(gambler => gambler.username === username);
+        if (index === -1) {
+            return false;
+        }
+
+        this.gamblers[index].balance += amount;
+        return true;
+    }
+
     async createBet(matchBet: MatchBet): Promise<MatchBet> {
-        this.matchBets.push(matchBet);
+        this.matchBets.push({
+            ...matchBet,
+            id: this.matchBets.length
+        });
+
         let gamblerIndex = this.gamblers.findIndex(gambler => gambler.username === matchBet.username);
 
         this.gamblers[gamblerIndex].balance -= matchBet.amount;
@@ -279,8 +205,14 @@ export class MockBetApi implements BetApi {
         return Promise.resolve(matchBet);
     }
 
-    async withdrawBet(matchBet: MatchBet): Promise<boolean> {
-        const index = this.matchBets.findIndex(bet => bet.matchId === matchBet.matchId && bet.username === matchBet.username);
+    async finalizeBet(bet_id: number, eranings: number): Promise<MatchBetWithId> {
+        const index = this.matchBets.findIndex(bet => bet.id === bet_id);
+        this.matchBets[index].earnings = eranings;
+        return this.matchBets[index];
+    }
+
+    async withdrawBet(matchBet: MatchBetWithId): Promise<boolean> {
+        const index = this.matchBets.findIndex(bet => bet.id === matchBet.id && bet.username === matchBet.username);
         if (index !== -1) {
             this.matchBets.splice(index, 1);
             return Promise.resolve(true);
@@ -295,7 +227,7 @@ export class MockBetApi implements BetApi {
     async createGambler(username: string): Promise<Gambler> {
         const gambler: Gambler = {
             username,
-            balance: config.DEFAULT_GAMBLING_AMOUNT,
+            balance: botConfig.DEFAULT_GAMBLING_AMOUNT,
             betCount: 0
         };
         this.gamblers.push(gambler);
@@ -303,7 +235,7 @@ export class MockBetApi implements BetApi {
         return gambler;
     }
 
-    async getBets(param: string | number | number[]): Promise<MatchBet[]> {
+    async getBets(param: string | number | number[]): Promise<MatchBetWithId[]> {
         if (typeof param === 'string') {
             return this.matchBets.filter(bet => bet.username === String(param));
         }
@@ -312,9 +244,6 @@ export class MockBetApi implements BetApi {
             return this.matchBets.filter(bet => param.includes(bet.matchId));
         }
 
-        return this.matchBets.filter(bet => bet.matchId === Number(param));
+        return this.matchBets.filter(bet => bet.matchId === param);
     }
 }
-
-
-export const betApi: BetApi = new MockBetApi();

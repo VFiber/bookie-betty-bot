@@ -14,7 +14,7 @@ export interface ParameterAutocompleteMap {
 
 export interface Command {
     data: any;
-    execute: (i: ChatInputCommandInteraction) => Promise<InteractionResponse> | Promise<Message> | Promise<void>;
+    execute: (i: ChatInputCommandInteraction) => Promise<InteractionResponse | Message | void>;
     autocompleteMap?: ParameterAutocompleteMap;
 }
 
