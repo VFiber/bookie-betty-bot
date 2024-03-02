@@ -2,10 +2,8 @@ import { Sequelize } from 'sequelize-typescript';
 
 import { BetAPI } from '../bet-api.interface';
 import { ChampionshipWithId, Gambler, isWinnerType, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
-import { ORMChampionship, ORMMatch } from './sequelize-models';
+import { ORMBets, ORMChampionship, ORMGambler, ORMMatch } from './sequelize-models';
 import { Op } from 'sequelize';
-import { ORMBets } from './sequelize-models/ORMBets';
-import { ORMGambler } from './sequelize-models/ORMGambler';
 import { User } from 'discord.js';
 import { botConfig } from '../../../bot';
 
