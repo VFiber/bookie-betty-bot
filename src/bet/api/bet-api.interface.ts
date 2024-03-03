@@ -11,11 +11,15 @@ export interface BetAPI {
      */
     createChampionship(name: string, teams: string[]): Promise<ChampionshipWithId | false>;
 
+    updateChampionship(championship: ChampionshipWithId): Promise<ChampionshipWithId | false>;
+
     /**
      * Get a championship by id
      * @param championshipId
      */
     getChampionship(championshipId: number): Promise<ChampionshipWithId | undefined>;
+
+    getChampionships(): Promise<ChampionshipWithId[]>;
 
     /**
      * Get all teams of a championship
@@ -27,7 +31,7 @@ export interface BetAPI {
      * Get a match by id
      * @param matchId
      */
-    getMatch(matchId: number): Promise<MatchWithId | undefined>;
+    getMatch(matchId: number | number[]): Promise<MatchWithId | MatchWithId[] | undefined>;
 
     /**
      * Get all matches of a championship
@@ -35,6 +39,13 @@ export interface BetAPI {
      * @param openOnly
      */
     getMatches(championshipId: number, openOnly: boolean): Promise<MatchWithId[]>;
+
+    /**
+     * Get all locked matches of a championship
+     * @param championshipId
+     * @param withoutResultOnly
+     */
+    getLockedMatches(championshipId: number, withoutResultOnly: boolean): Promise<MatchWithId[]>;
 
     /**
      * Create a new match

@@ -165,10 +165,18 @@ export class MessageFormatter {
     }
 
     static createChampionshipReply(championship: ChampionshipWithId) {
-        let content = `### Bajnokság: \#${championship.id} - ${championship.name} `
+        return `### Bajnokság: \#${championship.id} - ${championship.name} `
             + (championship.teams ? `bajnokságban résztvevő csapatok: ${championship?.teams.join(', ')}` : 'Nincs résztvevő csapat.');
-        return {
-            content
-        }
+    }
+
+    static createChampionshipListReply(championships: ChampionshipWithId[]) {
+        let content = '';
+
+        championships.forEach((championship: ChampionshipWithId) => {
+                content += MessageFormatter.createChampionshipReply(championship) + '\n';
+            }
+        );
+
+        return content;
     }
 }

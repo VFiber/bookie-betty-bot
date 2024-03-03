@@ -45,17 +45,46 @@ export class BetApiSqlize implements BetAPI {
         };
     }
 
+    async updateChampionship(championship: ChampionshipWithId): Promise<ChampionshipWithId | false> {
+        const ormChampionship = await ORMChampionship.findByPk(championship.id);
+        if (!ormChampionship) {
+            return false;
+        }
+
+        ormChampionship.name = championship.name;
+        ormChampionship.teams = championship?.teams ? championship?.teams.join(',') : '';
+
+
+        try {
+            await ormChampionship.save();
+        } catch (error) {
+            console.error('Error updating championship:', {championship, error});
+            return false;
+        }
+
+        return championship;
+    }
+
     async getChampionship(championshipId: number): Promise<ChampionshipWithId | undefined> {
         const championship = await ORMChampionship.findByPk(championshipId);
         if (championship instanceof ORMChampionship) {
             return {
                 id: championship.id,
                 name: championship.name,
-                teams: championship.teams?.split(',')
+                teams: championship?.teams ? championship.teams?.split(',') : []
             };
         }
 
         return undefined;
+    }
+
+    async getChampionships(): Promise<ChampionshipWithId[]> {
+        const championships = await ORMChampionship.findAll();
+        return championships.map(championship => ({
+            id: championship.id,
+            name: championship.name,
+            teams: championship.teams?.split(',')
+        }));
     }
 
     async getTeams(championshipId: number): Promise<string[]> {
@@ -83,7 +112,16 @@ export class BetApiSqlize implements BetAPI {
         return ormMatch as MatchWithId;
     }
 
-    async getMatch(matchId: number): Promise<MatchWithId | undefined> {
+    async getMatch(matchId: number | number[]): Promise<MatchWithId | MatchWithId[] | undefined> {
+        if (Array.isArray(matchId)) {
+            const matches = await ORMMatch.findAll({
+                where: {
+                    id: matchId
+                }
+            });
+            return matches.map(match => this.mapMatch(match));
+        }
+
         const match = await ORMMatch.findByPk(matchId);
         if (match === null) {
             return undefined;
@@ -102,6 +140,7 @@ export class BetApiSqlize implements BetAPI {
         }
 
         return await ORMMatch.findAll({
+            // @ts-ignore if you specifiy betLockDateTime as undefined, the type will be correct, but the query will not work
             where: {
                 [Op.and]: [
                     {championshipId: championshipId},
@@ -118,10 +157,32 @@ export class BetApiSqlize implements BetAPI {
         }).then(matches => matches.map(match => this.mapMatch(match)));
     }
 
+    async getLockedMatches(championshipId: number, withoutResultOnly: boolean = true): Promise<MatchWithId[]> {
+        if (!withoutResultOnly) {
+            return await ORMMatch.findAll({
+                where: {
+                    championshipId
+
+                }
+            }).then(matches => matches.map(match => this.mapMatch(match)));
+        }
+
+        return await ORMMatch.findAll({
+            where: {
+                [Op.and]: [
+                    {championshipId: championshipId},
+                    {winner: null}
+                ]
+            }
+        }).then(matches => matches.map(match => this.mapMatch(match)));
+    }
+
+
     async lockMatch(match_id: number, betLockDateTime: Date): Promise<MatchWithId | false> {
         await ORMBets.destroy({
             where: {
                 matchId: match_id,
+                // @ts-ignore nem publikus mező, automatikusan rakja rá a sequelize
                 createdAt: {
                     [Op.gt]: betLockDateTime
                 }

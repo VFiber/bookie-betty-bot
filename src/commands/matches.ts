@@ -10,6 +10,7 @@ export const data = new SlashCommandBuilder()
     .setDescription('Lists the active match list for the active championship')
     .addIntegerOption(option =>
         option.setName('championship_id')
+            .setAutocomplete(true)
             .setDescription('Championship ID')
     );
 

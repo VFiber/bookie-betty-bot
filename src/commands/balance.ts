@@ -11,8 +11,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const user = interaction.user;
     const userName = user.username;
 
-    console.log(user);
-
     const gambler = await betApi.getGambler(userName);
 
     if (!gambler) {

@@ -101,6 +101,10 @@ export class MockBetApi implements BetAPI {
         return this.championships.find(championship => championship.id === Number(championshipId));
     }
 
+    async getChampionships(): Promise<ChampionshipWithId[]> {
+        return this.championships;
+    }
+
     async getMatch(matchId: number): Promise<MatchWithId | undefined> {
         return this.matches.find(match => match.id === Number(matchId));
     }
@@ -116,6 +120,10 @@ export class MockBetApi implements BetAPI {
                 (!match.betLockDateTime || match.betLockDateTime > new Date()) &&
                 (!match.matchDateTime || match.matchDateTime > new Date())
         );
+    }
+
+    getLockedMatches(championshipId: number, withoutResultOnly: boolean): Promise<MatchWithId[]> {
+        return Promise.resolve(this.matches.filter(match => match.championshipId === championshipId && match.betLockDateTime && (!match.winner || !withoutResultOnly)));
     }
 
     async createMatch(match: Match): Promise<MatchWithId> {
@@ -236,7 +244,7 @@ export class MockBetApi implements BetAPI {
         return gambler;
     }
 
-    async getBets(param: string | number | number[]): Promise<MatchBetWithId[]> {
+    async getBets(param: unknown): Promise<MatchBetWithId[]> {
         if (typeof param === 'string') {
             return this.matchBets.filter(bet => bet.username === String(param));
         }

@@ -75,7 +75,11 @@ async function handleAutocompleteInteraction(interaction: AutocompleteInteractio
         return interaction.respond([]);
     }
 
-    console.debug("Autocomplete for: ", commandKey, interaction?.options?.getSubcommand(), focused.name, ApplicationCommandOptionType[focused.type], ` Value: "${focused.value}"`);
+    try {
+        console.debug("Autocomplete for: ", commandKey, interaction?.options?.getSubcommand(), focused.name, ApplicationCommandOptionType[focused.type], ` Value: "${focused.value}"`);
+    } catch (e) {
+        console.error("Error while logging autocomplete: ", e);
+    }
 
     const parameterName = focused.name as keyof ParameterAutocompleteMap;
 

@@ -5,11 +5,11 @@ import { BetAPI, Match, MatchWithId } from '../bet';
 import { botConfig } from './botConfig';
 import { getBetApi } from './environment-setup';
 
-const api: BetAPI = await getBetApi();
+const betApi: BetAPI = await getBetApi();
 
 async function matchIdAutocomplete(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     const filterString = interaction.options.getFocused().toLowerCase();
-    let matches = await api.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, false);
+    let matches = await betApi.getMatches(botConfig.DEFAULT_CHAMPIONSHIP_ID, false);
 
     return filterMatchesForAutoComplete(matches, filterString);
 }
@@ -18,7 +18,8 @@ async function matchIdAutocomplete(interaction: AutocompleteInteraction): Promis
  * Azon paraméterek listája, amit a rendszer automatikusan fel tud ismerni névről, mert egyediek
  */
 export const parameterAutocompleteMap: ParameterAutocompleteMap = {
-    match_id: matchIdAutocomplete
+    match_id: matchIdAutocomplete,
+    championship_id: autocomplete_championship_id
 }
 
 export function filterMatches(matches: MatchWithId[], filterString = ""): MatchWithId[] {
@@ -92,3 +93,23 @@ export function getWinnerAutocompleteForMatch(match: Match | undefined): Autocom
         }
     ];
 }
+
+async function autocomplete_championship_id(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
+    let championships = await betApi.getChampionships();
+
+    const focused = interaction.options.getFocused(true);
+
+    if (focused && focused.value) {
+        championships = championships.filter(championship =>
+            championship.id.toString() === focused.value ||
+            championship.name === focused.value ||
+            championship.name.startsWith(focused.value)
+        );
+    }
+
+    return championships.map(championship => ({
+        name: championship.name,
+        value: championship.id.toString()
+    }));
+}
+
