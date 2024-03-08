@@ -1,66 +1,89 @@
 import { ChampionshipWithId, Match, MatchBet, MatchWithBets, MatchWithId } from './api';
-import { EmbedBuilder, quote } from 'discord.js';
+import { codeBlock, EmbedBuilder, quote } from 'discord.js';
+import { AsciiTable3 } from 'ascii-table3';
 
 export class MessageFormatter {
+    static createMatchTable(championship: ChampionshipWithId, matches: MatchWithBets[], page = 0): string {
+        const renderedFullTable: string = codeBlock(MessageFormatter.getMatchTable(matches, championship));
+        const fullTableStringlength = renderedFullTable.length;
 
-    static createEmbedFromMatchList(championship: ChampionshipWithId, matches: MatchWithBets[]): EmbedBuilder {
-        const embed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle(championship.name)
-            .setDescription("Mérkőzések");
+        if (fullTableStringlength <= 2000) {
+            return renderedFullTable;
+        }
 
-        matches.forEach((match: MatchWithBets) => {
-            embed.addFields(MessageFormatter.createShortEmbedFieldsFromMatch(match, match.bets));
-        });
+        // hagyunk a lapozás állapotának kiíratására 400 karakter bizonytalansági tényezőként (mérkőzésenként eltérhet a hossz)
+        let minPageCount = Math.ceil(fullTableStringlength / 1800);
 
-        embed.setTimestamp();
+        if (page && page <= minPageCount) {
+            // biztosan lesz lapozás, mert már a usertől úgy jött
+            return MessageFormatter.createMatchTablePaginated(championship, matches, page, minPageCount);
+        }
 
-        return embed;
+        // több lapra kell törni, de nem jött lap paraméter
+        page = 1;
+        return MessageFormatter.createMatchTablePaginated(championship, matches, page, minPageCount);
     }
 
-    static createShortEmbedFieldsFromMatch(match: Match | MatchWithBets, bets: MatchBet[] = []): {
-        name: string,
-        value: string,
-        inline?: boolean
-    }[] {
-        const winnerString = match.winner === 'DRAW' ? 'Döntetlen' : `Győztes: ${match.winner === 'A' ? match.teamA : match.teamB}`;
-        const result = 'Eredmény: ' + (match.winner ? `\n ${winnerString} ${match.resultA}:${match.resultB}` : ' - ');
-        const betString = bets && Array.isArray(bets) && bets.length > 0 ? `${bets.length} fogadás, összesen: $${bets.reduce((acc: number, bet: MatchBet) => acc + bet.amount, 0)}` : '-';
+    static createMatchTablePaginated(championship: ChampionshipWithId, matches: MatchWithBets[], page: number, pageCount: number): string {
+        // a matches tömböt szét kell vágni pageCount darabra, ezért megszámoljuk hány meccs van benne
+        const matchCount = matches.length;
+        const matchesPerPage = Math.ceil(matchCount / pageCount);
 
-        let rows = [];
-        rows.push({
-            name: `#${match.id} ${match.teamA} vs ${match.teamB}`,
-            value: result,
-            inline: true
-        });
+        const startIndex = (page - 1) * matchesPerPage;
+        const slicedMatches = matches.slice(startIndex, startIndex + matchesPerPage);
 
-        rows.push({
-            name: "Fogadások",
-            value: betString,
-            inline: true
-        });
+        const commandInfo = `/matches championship_id:${championship.id} page:${page + 1}`;
+        const pageInfo = `Oldal: ${page}/${pageCount} | Összesen: ${matchCount} mérkőzés.`;
+        return codeBlock(MessageFormatter.getMatchTable(slicedMatches, championship, page, pageCount) + pageInfo + '\n' + commandInfo);
+    }
 
-        let stateString = "-";
+    private static getMatchTable(matches: MatchWithBets[], championship: ChampionshipWithId, currentpage: number = 0, maxPages: number = 0): string {
 
-        if (!match.betLockDateTime && !match.matchDateTime) {
-            stateString = "Fogadható";
+        function getMatchBetStateSring(match: MatchWithBets) {
+            let stateString = "-";
+
+            if (!match.betLockDateTime && !match.matchDateTime) {
+                stateString = "Fogadható";
+            }
+
+            if (match.betLockDateTime && match.betLockDateTime > new Date()) {
+                stateString = `Még ${Math.floor((match.betLockDateTime.getTime() - new Date().getTime()) / 1000 / 60)} percig fogadható.`;
+            }
+
+            if ((match.betLockDateTime && match.betLockDateTime < new Date()) || (match.matchDateTime && match.matchDateTime < new Date())) {
+                stateString = "Nem fogadható";
+            }
+            return stateString;
         }
 
-        if (match.betLockDateTime && match.betLockDateTime > new Date()) {
-            stateString = `Még ${Math.floor((match.betLockDateTime.getTime() - new Date().getTime()) / 1000 / 60)} percig fogadható.`;
+        function getWinnerString(match: MatchWithBets) {
+            if (!match.winner) {
+                return ' - ';
+            }
+
+            return match.winner === 'DRAW' ? 'Döntetlen' : `Győztes: ${match.winner === 'A' ? match.teamA : match.teamB}`;
         }
 
-        if ((match.betLockDateTime && match.betLockDateTime < new Date()) || (match.matchDateTime && match.matchDateTime < new Date())) {
-            stateString = "Nem fogadható";
+        function getScoreString(match: MatchWithBets) {
+            return match.winner ? `${match.resultA}:${match.resultB}` : ' - ';
         }
 
-        rows.push({
-            name: `Állapot`,
-            value: stateString,
-            inline: true
-        });
+        const matrix = matches.map((match: MatchWithBets) => [
+            match.id,
+            match.teamA + ' vs ' + match.teamB,
+            getScoreString(match),
+            getWinnerString(match),
+            match?.bets ? match.bets.length + ' db - $' + match.bets.reduce((acc, bet) => acc + bet.amount, 0) : 0,
+            getMatchBetStateSring(match),
+        ]);
 
-        return rows;
+        const title = `#${championship.id} - ${championship.name}` + (maxPages > 0 ? ` - ${currentpage}/${maxPages}` : '');
+        const table =
+            new AsciiTable3(title)
+                .setHeading('ID', 'Mérkőzés', 'Eredmény', 'Győztes', 'Fogadások', 'Állapot')
+                .addRowMatrix(matrix);
+
+        return table.toString();
     }
 
     static createMatchReply(match: MatchWithId, bets: MatchBet[] = []) {

@@ -12,6 +12,10 @@ export const data = new SlashCommandBuilder()
         option.setName('championship_id')
             .setAutocomplete(true)
             .setDescription('Championship ID')
+    )
+    .addIntegerOption(option =>
+        option.setName('page')
+            .setDescription('Page number when the list is too long')
     );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -19,11 +23,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const api: BetAPI = betApi;
 
     const championshipId = interaction.options.getInteger('championship_id') || botConfig.DEFAULT_CHAMPIONSHIP_ID;
-    const championShip = await api.getChampionship(championshipId);
+    const championship = await api.getChampionship(championshipId);
 
-    if (!championShip) {
+    if (!championship) {
         return await interaction.editReply(`Championship #${championshipId} not found`);
     }
+
+    const page = interaction.options.getInteger('page') || 0;
 
     let matches = await api.getMatches(championshipId, false);
     let matchIds = matches.map(match => match.id);
@@ -45,7 +51,5 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
     );
 
-    return await interaction.editReply({
-        embeds: [MessageFormatter.createEmbedFromMatchList(championShip, matchesWithBets)]
-    });
+    return await interaction.editReply(MessageFormatter.createMatchTable(championship, matchesWithBets, page));
 }

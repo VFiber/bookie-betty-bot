@@ -8,7 +8,14 @@ import {
     Interaction,
     InteractionType
 } from "discord.js";
-import { AutocompleteOption, deployCommands, getBetApi, ParameterAutocompleteMap, redeployGuildCommands } from './bot';
+import {
+    AutocompleteOption,
+    checkCommandDeployment,
+    deployCommands,
+    getBetApi,
+    ParameterAutocompleteMap,
+    redeployGuildCommands
+} from './bot';
 import { commands } from './commands';
 import { botConfig } from './bot/botConfig';
 import { parameterAutocompleteMap } from './bot/global-autocomplete-parameters';
@@ -116,6 +123,8 @@ async function handleAutocompleteInteraction(interaction: AutocompleteInteractio
 client.on(Events.GuildAvailable, async (guild) => {
     console.debug("Guild is available!");
     myGuild = guild;
+
+    await checkCommandDeployment(guild);
 });
 
 client.on(Events.Error, (error) => {
