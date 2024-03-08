@@ -10,15 +10,15 @@ import {
 } from "discord.js";
 import {
     AutocompleteOption,
+    botConfig,
     checkCommandDeployment,
     deployCommands,
     getBetApi,
     ParameterAutocompleteMap,
+    parameterAutocompleteMap,
     redeployGuildCommands
 } from './bot';
 import { commands } from './commands';
-import { botConfig } from './bot/botConfig';
-import { parameterAutocompleteMap } from './bot/global-autocomplete-parameters';
 
 // példányosítja a DB-t, hogy legalább egyszer lefusson
 const betApiInstance = getBetApi();

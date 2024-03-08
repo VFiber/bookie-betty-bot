@@ -1,4 +1,4 @@
-import { ChampionshipWithId, Match, MatchBet, MatchWithBets, MatchWithId } from './api';
+import { ChampionshipWithId, MatchBet, MatchWithBets, MatchWithId } from './api';
 import { codeBlock, EmbedBuilder, quote } from 'discord.js';
 import { AsciiTable3 } from 'ascii-table3';
 

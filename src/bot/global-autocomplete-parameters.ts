@@ -22,42 +22,33 @@ export const parameterAutocompleteMap: ParameterAutocompleteMap = {
     championship_id: autocomplete_championship_id
 }
 
-export function filterMatches(matches: MatchWithId[], filterString = ""): MatchWithId[] {
-    return matches.filter(
-        (match) => {
-            const stringMatchId = String(match.id);
-            // teljes egyezés
-            if (stringMatchId === filterString) {
-                return true;
-            }
-            // eleje egyezik
-            if (stringMatchId.startsWith(filterString)) {
+export function filterOptions(autocompletes: AutocompleteOption[], filterString = ""): AutocompleteOption[] {
+    return autocompletes.filter(
+        (autocomplete) => {
+            const loweredFilterString = filterString.toLowerCase();
+            const stringMatchId = String(autocomplete.value);
+
+            if (stringMatchId === loweredFilterString || stringMatchId.startsWith(loweredFilterString)) {
                 return true;
             }
 
-            // bármely csapat első karaktereivel egyezik
-            if (match.teamA.toLowerCase().startsWith(filterString)) {
-                return true;
-            }
-            if (match.teamB.toLowerCase().startsWith(filterString)) {
-                return true;
-            }
+            return autocomplete.name.toLowerCase().includes(loweredFilterString);
         }
     )
 }
 
 export function filterMatchesForAutoComplete(matches: MatchWithId[], filterString: string): AutocompleteOption[] {
+    let mappedMatches: AutocompleteOption[] = matches.map(
+        (match) => ({
+            name: `#${match.id} - ${match.teamA} vs ${match.teamB}`,
+            value: match.id
+        }));
+
     if (filterString !== '') {
-        matches = filterMatches(matches, filterString);
+        mappedMatches = filterOptions(mappedMatches, filterString);
     }
 
-    return matches.map(match => (
-            {
-                name: `#${match.id} - ${match.teamA} vs ${match.teamB}`,
-                value: match.id
-            }
-        )
-    );
+    return mappedMatches;
 }
 
 export function getWinnerAutocompleteForMatch(match: Match | undefined): AutocompleteOption[] {
