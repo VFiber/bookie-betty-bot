@@ -74,7 +74,7 @@ export class MessageFormatter {
             getScoreString(match),
             getWinnerString(match),
             match?.bets ? match.bets.length + ' db - $' + match.bets.reduce((acc, bet) => acc + bet.amount, 0) : 0,
-            getMatchBetStateSring(match),
+            getMatchBetStateSring(match)
         ]);
 
         const title = `#${championship.id} - ${championship.name}` + (maxPages > 0 ? ` - ${currentpage}/${maxPages}` : '');
@@ -204,8 +204,10 @@ export class MessageFormatter {
     }
 
     static createLeaderboard(gamblers: LeaderboardEntry[]) {
-        const matrix = gamblers.map((gambler: LeaderboardEntry, index) =>
-            [index + 1 + ".", `${gambler.globalName} (${gambler.username})` , gambler.sumEarnings.toFixed(2) + "$" , gambler.betCount]
+        const matrix = gamblers.map((gambler: LeaderboardEntry, index) => {
+                const earnings = gambler?.sumEarnings ? gambler?.sumEarnings?.toFixed(2) + "$" : 0;
+                return [index + 1 + ".", `${gambler.globalName} (${gambler.username})`, earnings, gambler.betCount]
+            }
         );
 
         const table = new AsciiTable3('Hazárdírozók hall of fame')
