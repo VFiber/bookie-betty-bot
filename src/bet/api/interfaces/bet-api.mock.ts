@@ -1,7 +1,9 @@
 import { botConfig } from '../../../bot';
 import { BetAPI } from '../bet-api.interface';
-import { ChampionshipWithId, Gambler, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
+import { ChampionshipWithId, Gambler, LeaderboardEntry, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
 import { User } from 'discord.js';
+import { randomInt } from 'node:crypto';
+import { match } from 'node:assert';
 
 export class MockBetApi implements BetAPI {
     private championships: ChampionshipWithId[] = [
@@ -254,5 +256,30 @@ export class MockBetApi implements BetAPI {
         }
 
         return this.matchBets.filter(bet => bet.matchId === param);
+    }
+
+    async updateChampionship(championship: ChampionshipWithId): Promise<ChampionshipWithId | false> {
+        const champIndex = this.championships.findIndex(champ => champ.id === championship.id);
+        if (champIndex === -1) {
+            return Promise.resolve(false);
+        }
+        this.championships[champIndex] = championship;
+
+        return this.championships[champIndex];
+    }
+
+
+    async getTopBetters(): Promise<LeaderboardEntry[]> {
+        return this.gamblers
+            .map(gambler => (
+                {
+                    username: gambler.username,
+                    globalName: gambler.username,
+                    balance: gambler.balance,
+                    sumEarnings: randomInt(10),
+                    betCount: gambler.betCount
+                }
+            ))
+            .sort((a, b) => b.balance - a.balance);
     }
 }

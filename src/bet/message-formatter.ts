@@ -1,6 +1,6 @@
-import { ChampionshipWithId, MatchBet, MatchWithBets, MatchWithId } from './api';
+import { ChampionshipWithId, LeaderboardEntry, MatchBet, MatchWithBets, MatchWithId } from './api';
 import { codeBlock, EmbedBuilder, quote } from 'discord.js';
-import { AsciiTable3 } from 'ascii-table3';
+import { AlignmentEnum, AsciiTable3 } from 'ascii-table3';
 
 export class MessageFormatter {
     static createMatchTable(championship: ChampionshipWithId, matches: MatchWithBets[], page = 0): string {
@@ -201,5 +201,20 @@ export class MessageFormatter {
         );
 
         return content;
+    }
+
+    static createLeaderboard(gamblers: LeaderboardEntry[]) {
+        const matrix = gamblers.map((gambler: LeaderboardEntry, index) =>
+            [index + 1 + ".", `${gambler.globalName} (${gambler.username})` , gambler.sumEarnings.toFixed(2) + "$" , gambler.betCount]
+        );
+
+        const table = new AsciiTable3('Hazárdírozók hall of fame')
+            .setHeading('#', 'Játékos', 'Kereset', 'Fogadások száma')
+            .setAlign(3, AlignmentEnum.RIGHT)
+            .setAlign(4, AlignmentEnum.CENTER)
+            .addRowMatrix(matrix)
+            .setStyle('unicode-round');
+
+        return table.toString();
     }
 }

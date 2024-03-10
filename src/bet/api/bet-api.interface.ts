@@ -1,4 +1,4 @@
-import { ChampionshipWithId, Gambler, Match, MatchBet, MatchBetWithId, MatchWithId } from './models';
+import { ChampionshipWithId, Gambler, LeaderboardEntry, Match, MatchBet, MatchBetWithId, MatchWithId } from './models';
 import { User } from 'discord.js';
 
 export interface BetAPI {
@@ -46,6 +46,8 @@ export interface BetAPI {
      * @param withoutResultOnly
      */
     getLockedMatches(championshipId: number, withoutResultOnly: boolean): Promise<MatchWithId[]>;
+
+    getTopBetters(): Promise<LeaderboardEntry[]>;
 
     /**
      * Create a new match

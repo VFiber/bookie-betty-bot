@@ -8,15 +8,17 @@ import * as balance from "./balance";
 import * as championships from "./championships";
 import * as bet from "./bet";
 import * as bets from "./bets";
+import * as leaderboard from "./leaderboard";
 
 export const commands: NamedCommand = {
+    balance,
     bet,
     bets,
-    balance,
+    betadm,
+    championships,
     help,
+    leaderboard,
     match,
     matches,
-    betadm,
     redeploy,
-    championships
 };

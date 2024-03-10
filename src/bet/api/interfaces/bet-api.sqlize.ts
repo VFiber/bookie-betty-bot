@@ -1,24 +1,33 @@
 import { Sequelize } from 'sequelize-typescript';
 
 import { BetAPI } from '../bet-api.interface';
-import { ChampionshipWithId, Gambler, isWinnerType, Match, MatchBet, MatchBetWithId, MatchWithId } from '../models';
+import {
+    ChampionshipWithId,
+    Gambler,
+    isWinnerType,
+    LeaderboardEntry,
+    Match,
+    MatchBet,
+    MatchBetWithId,
+    MatchWithId
+} from '../models';
 import { ORMBets, ORMChampionship, ORMGambler, ORMMatch } from './sequelize-models';
 import { Op } from 'sequelize';
 import { User } from 'discord.js';
 import { botConfig } from '../../../bot';
 
 export class BetApiSqlize implements BetAPI {
-    constructor(protected sqlize: Sequelize) {
+    constructor(protected seqelize: Sequelize) {
     }
 
     async init(): Promise<BetApiSqlize> {
-        this.sqlize.addModels([
+        this.seqelize.addModels([
             ORMChampionship,
             ORMMatch,
             ORMBets,
             ORMGambler
         ]);
-        await this.sqlize.sync();
+        await this.seqelize.sync();
         return this;
     }
 
@@ -157,6 +166,19 @@ export class BetApiSqlize implements BetAPI {
         }).then(matches => matches.map(match => this.mapMatch(match)));
     }
 
+    async getTopBetters(): Promise<LeaderboardEntry[]> {
+        return await this.seqelize.query(
+            "SELECT g.username, g.globalName, g.balance, sum(b.earnings) as sumEarnings, count(b.id) as betCount\n" +
+            "FROM gamblers g\n" +
+            "         JOIN bets b ON g.username = b.username\n" +
+            "WHERE betCount > 0\n" +
+            "GROUP BY g.username\n" +
+            "ORDER BY CAST(sumEarnings as INTEGER) DESC, CAST(betCount as INTEGER) ASC\n" +
+            "LIMIT 10"
+        )
+            .then(([results]) => results as LeaderboardEntry[]);
+    }
+
     async getLockedMatches(championshipId: number, withoutResultOnly: boolean = true): Promise<MatchWithId[]> {
         if (!withoutResultOnly) {
             return await ORMMatch.findAll({
@@ -229,7 +251,7 @@ export class BetApiSqlize implements BetAPI {
         // az arányosan szétosztandó összeg
         const distributedAmount = totalBetAmount - winnersAmount;
 
-        const transaction = await this.sqlize.transaction();
+        const transaction = await this.seqelize.transaction();
 
         try {
             await match.update(updatedMatch, {
@@ -297,7 +319,7 @@ export class BetApiSqlize implements BetAPI {
                 username: matchBet.username
             }
         });
-        const transaction = await this.sqlize.transaction();
+        const transaction = await this.seqelize.transaction();
         let bet;
         try {
             bet = await ORMBets.create(matchBet, {transaction});

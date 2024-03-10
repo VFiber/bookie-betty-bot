@@ -108,3 +108,11 @@ export interface GamblerHistory {
     username: Gambler['username'];
     MatchBet: MatchBet;
 }
+
+export interface LeaderboardEntry {
+    username: string;
+    globalName: string,
+    balance: number,
+    sumEarnings: number,
+    betCount: number
+}
