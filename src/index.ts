@@ -2,7 +2,7 @@ import {
     ApplicationCommandOptionType,
     AutocompleteInteraction,
     ChatInputCommandInteraction,
-    Client,
+    Client, DiscordjsTypeError,
     Events,
     Guild,
     Interaction,
@@ -85,7 +85,9 @@ async function handleAutocompleteInteraction(interaction: AutocompleteInteractio
     try {
         console.debug("Autocomplete for: ", commandKey, interaction?.options?.getSubcommand(), focused.name, ApplicationCommandOptionType[focused.type], ` Value: "${focused.value}"`);
     } catch (e) {
-        console.error("Error while logging autocomplete: ", e);
+        if (!(e instanceof DiscordjsTypeError)) {
+            console.error(e);
+        }
     }
 
     const parameterName = focused.name as keyof ParameterAutocompleteMap;

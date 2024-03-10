@@ -8,6 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js --format=esm --banner:js=\"import { createRequire as topLevelCreateRequire } from \\\"module\\\"; const require = topLevelCreateRequire(import.meta.url);\"",
     "build": "tsup-node src/index.ts"
   },
   "author": "Ádám Fibinger",
@@ -28,8 +29,9 @@
     "tedious": "^17.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.24",
+    "@types/node": "^20.11.25",
     "@types/validator": "^13.11.9",
+    "esbuild": "0.20.1",
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"

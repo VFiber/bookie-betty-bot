@@ -61,7 +61,7 @@ export class MessageFormatter {
                 return ' - ';
             }
 
-            return match.winner === 'DRAW' ? 'Döntetlen' : `Győztes: ${match.winner === 'A' ? match.teamA : match.teamB}`;
+            return match.winner === 'DRAW' ? 'Döntetlen' : `${match.winner === 'A' ? match.teamA : match.teamB}`;
         }
 
         function getScoreString(match: MatchWithBets) {
