@@ -12,7 +12,7 @@ const betApi = await getBetApi();
 
 export const data = new SlashCommandBuilder()
     .setName('betadm')
-    .setDescription('Manages or displays matches.')
+    .setDescription('Admin commands to manage matches and championships.')
     .addSubcommandGroup(subcommand =>
         subcommand.setName('championship')
             .setDescription('Displays the current championship')

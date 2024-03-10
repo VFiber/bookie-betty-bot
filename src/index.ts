@@ -61,6 +61,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return Promise.resolve();
     }
 
+    if (commandName === 'help') {
+        const commandsList = Object.keys(commands).map(
+            (command) =>
+                `\`/${command}\` - ` + commands[command].data.description
+        ).join("\n");
+        await interaction.reply({
+            content: `Bet bot available commands (some commands might not be available for everyone):\n${commandsList}`,
+            ephemeral: true
+        });
+        return Promise.resolve();
+    }
+
     if (commands[commandName as keyof typeof commands]) {
         await commands[commandName as keyof typeof commands].execute(interaction);
     }

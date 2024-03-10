@@ -38,10 +38,13 @@ export async function deployCommands({guildId}: DeployCommandsProps) {
 
 export async function checkCommandDeployment(guild: Guild) {
     console.log('Checking command deployment on ', guild.name, guild.id);
-    const commands = await rest.get(Routes.applicationGuildCommands(botConfig.DISCORD_CLIENT_ID, guild.id));
-
-    if (!commands || (Array.isArray(commands) && commands.filter((command) => command.name === 'redeploy').length === 0)) {
-        // redeploy command not found, redeploying all commands, just to be sure
-        await deployCommands({guildId: guild.id});
+    try {
+        const commands = await rest.get(Routes.applicationGuildCommands(botConfig.DISCORD_CLIENT_ID, guild.id));
+        if (!commands || (Array.isArray(commands) && commands.filter((command) => command.name === 'redeploy').length === 0)) {
+            // redeploy command not found, redeploying all commands, just to be sure
+            await deployCommands({guildId: guild.id});
+        }
+    } catch (error) {
+        console.error('Checking command deployment failed for gild ' + guild.name, error);
     }
 }

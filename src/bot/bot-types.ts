@@ -1,4 +1,10 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, InteractionResponse, Message } from 'discord.js';
+import {
+    AutocompleteInteraction,
+    ChatInputCommandInteraction,
+    InteractionResponse,
+    Message,
+    SlashCommandBuilder
+} from 'discord.js';
 
 
 export interface AutocompleteOption {
@@ -13,7 +19,7 @@ export interface ParameterAutocompleteMap {
 }
 
 export interface Command {
-    data: any;
+    data: Partial<SlashCommandBuilder>;
     execute: (i: ChatInputCommandInteraction) => Promise<InteractionResponse | Message | void>;
     autocompleteMap?: ParameterAutocompleteMap;
 }
