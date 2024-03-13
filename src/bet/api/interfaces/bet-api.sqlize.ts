@@ -177,7 +177,7 @@ export class BetApiSqlize implements BetAPI {
             "       count(b.id) as betCount\n" +
             "FROM gamblers g\n" +
             "         JOIN bets b ON g.username = b.username\n" +
-            "WHERE betCount > 0\n" +
+            "WHERE b.earnings is not null\n" +
             "GROUP BY g.username\n" +
             "ORDER BY CAST(sumEarnings as INTEGER) DESC, CAST(betCount as INTEGER) ASC\n" +
             "LIMIT 10\n"
