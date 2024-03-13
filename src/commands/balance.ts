@@ -22,7 +22,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     return interaction.reply({
-        content: `Az egyenleged: $${gambler.balance}, eddig ${gambler.betCount} fogadást kötöttél.`,
+        content: `Az egyenleged: $${gambler.balance}.`,
         ephemeral: true
     });
 }

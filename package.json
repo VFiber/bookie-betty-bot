@@ -1,6 +1,6 @@
 {
   "name": "bet-bot",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Basic gambling bot for Discord",
   "type": "module",
   "main": "index.js",
