@@ -220,3 +220,12 @@ export class MessageFormatter {
         return table.toString();
     }
 }
+
+export function escapeFormatChars(text: string): string {
+    return text
+        .replace(/\\/g, '\\\\')
+        .replace(/\*/g, '\\*')
+        .replace(/_/g, '\\_')
+        .replace(/~/g, '\\~')
+        .replace(/`/g, '\\`');
+}

@@ -1,5 +1,6 @@
 import { blockQuote, bold, ChatInputCommandInteraction, SlashCommandBuilder, underscore } from "discord.js";
 import { getBetApi } from '../bot';
+import { escapeFormatChars, MessageFormatter } from '../bet';
 
 const betApi = await getBetApi();
 
@@ -8,7 +9,7 @@ export const data = new SlashCommandBuilder()
     .setDescription('Shows your bets');
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ephemeral: true});
+    await interaction.deferReply();
 
     const bets = await betApi.getBets(interaction.user.username);
 
@@ -35,9 +36,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             continue;
         }
 
-        const winnerString = bet.winner === 'DRAW' ? 'Döntetlen' : "Győztes: " + (bet.winner === 'A' ? match.teamA : match.teamB);
+        const winnerString = bet.winner === 'DRAW' ? 'Döntetlen' : "Győztes: " + escapeFormatChars((bet.winner === 'A' ? match.teamA : match.teamB));
 
-        let matchString = underscore(`#${match?.id} ${match?.teamA} vs ${match?.teamB}`) + `, Összeg: $${bet.amount}, ` +
+        let matchString = underscore(escapeFormatChars(`#${match?.id} ${match?.teamA} vs ${match?.teamB}`)) + `, Összeg: $${bet.amount}, ` +
             `Fogadás: ${winnerString}`;
 
         if (bet.earnings) {
