@@ -267,43 +267,37 @@ export class BetApiSqlize implements BetAPI {
                 transaction: transaction
             });
 
-            winnerBets = await Promise.all(
-                winnerBets.map(async (bet) => {
-                    //TODO: bank itt lecsíphet %-ot, ha akar
-                    const ratio = bet.amount / winnersAmount;
-                    const earnings = distributedAmount * ratio + bet.amount;
+            for (const bet of matchBets) {
+                //TODO: bank itt lecsíphet %-ot, ha akar
+                const ratio = bet.amount / winnersAmount;
+                const earnings = distributedAmount * ratio + bet.amount;
 
-                    const gambler = await ORMGambler.findOne({
-                        where: {
-                            username: bet.username
-                        },
-                        transaction: transaction
-                    });
-                    if (!gambler) {
-                        throw new Error('Gambler not found');
-                    }
+                const gambler = await ORMGambler.findOne({
+                    where: {
+                        username: bet.username
+                    },
+                    transaction
+                });
 
-                    gambler.balance += earnings;
-                    gambler.betCount++;
+                if (!gambler) {
+                    throw new Error('Gambler not found');
+                }
 
-                    await gambler.save({transaction});
+                gambler.balance += earnings;
+                gambler.betCount++;
 
-                    bet.earnings = earnings;
+                await gambler.save({transaction});
 
-                    await bet.save({transaction});
+                bet.earnings = earnings;
 
-                    return bet;
-                })
-            );
+                await bet.save({transaction});
+            }
 
-            await Promise.all(
-                matchBets.filter(bet => bet.winner !== updatedMatch.winner)
-                    .map(async (bet) => {
-                            bet.earnings = bet.amount * -1;
-                            await bet.save({transaction});
-                        }
-                    )
-            );
+            // veszteseknek a tétjüket visszafizetjük
+            for (const bet of matchBets.filter(bet => bet.winner !== updatedMatch.winner)) {
+                bet.earnings = bet.amount * -1;
+                await bet.save({transaction});
+            }
 
             await transaction.commit();
         } catch (error) {
@@ -312,7 +306,7 @@ export class BetApiSqlize implements BetAPI {
             return false;
         }
 
-        return await this.getMatch(updatedMatch.id) || false;
+        return await this.getMatch(updatedMatch.id) as MatchWithId || false;
     }
 
     addToGamblerBalance(username: string, amount: number): Promise<boolean> {
@@ -343,6 +337,7 @@ export class BetApiSqlize implements BetAPI {
     }
 
     async createGambler(user: User): Promise<Gambler> {
+        // @ts-ignore somehow cant really cast into Gambler
         const gambler = await ORMGambler.create({
             ...user,
             balance: botConfig.DEFAULT_GAMBLING_AMOUNT,
@@ -364,7 +359,9 @@ export class BetApiSqlize implements BetAPI {
         return ORMBets.findAll({
             where: {
                 username: param
-            }
+            },
+            limit: 30,
+            order: [['betDateTime', 'DESC']]
         }).then(bets => bets as unknown as MatchBetWithId[]);
     }
 
