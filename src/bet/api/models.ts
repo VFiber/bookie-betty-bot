@@ -112,7 +112,6 @@ export interface GamblerHistory {
 export interface LeaderboardEntry {
     username: string;
     globalName: string,
-    balance: number,
     sumEarnings: number,
     betCount: number
 }
