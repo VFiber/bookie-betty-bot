@@ -168,19 +168,12 @@ export class BetApiSqlize implements BetAPI {
 
     async getTopBetters(): Promise<LeaderboardEntry[]> {
         return await this.seqelize.query(
-            "SELECT g.username, g.globalName,\n" +
-            "       CASE\n" +
-            "              WHEN b.earnings > 0\n" +
-            "                  THEN sum(b.earnings - b.amount)\n" +
-            "                  ELSE b.earnings\n" +
-            "              END as sumEarnings,\n" +
-            "       count(b.id) as betCount\n" +
-            "FROM gamblers g\n" +
-            "         JOIN bets b ON g.username = b.username\n" +
-            "WHERE b.earnings is not null\n" +
-            "GROUP BY g.username\n" +
-            "ORDER BY CAST(sumEarnings as INTEGER) DESC, CAST(betCount as INTEGER) ASC\n" +
-            "LIMIT 10\n"
+            "SELECT g.username, g.globalName, sum(b.earnings) as sumEarnings, count(b.id) as betCount FROM gamblers g" +
+            " JOIN bets b ON g.username = b.username " +
+            "WHERE betCount > 0 " +
+            "GROUP BY g.username " +
+            "ORDER BY CAST(sumEarnings as INTEGER) DESC, CAST(betCount as INTEGER) ASC " +
+            "LIMIT 10"
         )
             .then(([results]) => results as LeaderboardEntry[]);
     }
