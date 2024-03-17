@@ -16,11 +16,11 @@ import { Op } from 'sequelize';
 import { User } from 'discord.js';
 import { botConfig } from '../../../bot';
 
-export class BetApiSqlize implements BetAPI {
+export class BetApiSeqelize implements BetAPI {
     constructor(protected seqelize: Sequelize) {
     }
 
-    async init(): Promise<BetApiSqlize> {
+    async init(): Promise<BetApiSeqelize> {
         this.seqelize.addModels([
             ORMChampionship,
             ORMMatch,
@@ -149,20 +149,17 @@ export class BetApiSqlize implements BetAPI {
         }
 
         return await ORMMatch.findAll({
-            // @ts-ignore if you specifiy betLockDateTime as undefined, the type will be correct, but the query will not work
-            where: {
-                [Op.and]: [
-                    {championshipId: championshipId},
-                    {
-                        betLockDateTime: {
-                            [Op.or]: {
-                                [Op.gt]: new Date(),
-                                [Op.eq]: null
-                            }
+            where: Sequelize.and(
+                {championshipId: championshipId},
+                {
+                    betLockDateTime: {
+                        [Op.or]: {
+                            [Op.gt]: new Date(),
+                            [Op.eq]: null
                         }
                     }
-                ]
-            }
+                }
+            )
         }).then(matches => matches.map(match => this.mapMatch(match)));
     }
 
@@ -189,12 +186,10 @@ export class BetApiSqlize implements BetAPI {
         }
 
         return await ORMMatch.findAll({
-            where: {
-                [Op.and]: [
-                    {championshipId: championshipId},
-                    {winner: null}
-                ]
-            }
+            where: Sequelize.and(
+                {championshipId: championshipId},
+                {winner: null}
+            )
         }).then(matches => matches.map(match => this.mapMatch(match)));
     }
 
@@ -266,6 +261,7 @@ export class BetApiSqlize implements BetAPI {
                 const earnings = distributedAmount * ratio + bet.amount;
 
                 const gambler = await ORMGambler.findOne({
+                    // @ts-ignore where options has some issues with typescript by default
                     where: {
                         username: bet.username
                     },
@@ -308,10 +304,16 @@ export class BetApiSqlize implements BetAPI {
 
     async createBet(matchBet: MatchBet): Promise<MatchBet | false> {
         const gambler = await ORMGambler.findOne({
+            // @ts-ignore where options has some issues with typescript by default
             where: {
                 username: matchBet.username
             }
         });
+
+        if (!gambler) {
+            return false;
+        }
+
         const transaction = await this.seqelize.transaction();
         let bet;
         try {
@@ -358,10 +360,11 @@ export class BetApiSqlize implements BetAPI {
         }).then(bets => bets as unknown as MatchBetWithId[]);
     }
 
-    async getGambler(username: string): Promise<Gambler> {
+    async getGambler(user: User): Promise<Gambler> {
         const gambler = await ORMGambler.findOne({
+            // @ts-ignore where options has some issues with typescript by default
             where: {
-                username
+                username: user.username
             }
         });
         return gambler as unknown as Gambler;

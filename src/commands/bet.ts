@@ -52,7 +52,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 async function autocompleteBetWinner(interaction: AutocompleteInteraction): Promise<AutocompleteOption[]> {
     let matchId = interaction.options.getInteger('match_id', true);
 
-    let match = await betApi.getMatch(matchId);
+    let match = await betApi.getMatch(matchId) as MatchWithId;
     return getWinnerAutocompleteForMatch(match);
 }
 
@@ -90,7 +90,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
     // alapvető szintaktikai faszságok kiszűrve, jöhet az erősebb validáció
     await interaction.deferReply({ephemeral: true});
 
-    const gambler = await betApi.getGambler(interaction.user.username) || await betApi.createGambler(interaction.user);
+    const gambler = await betApi.getGambler(interaction.user) || await betApi.createGambler(interaction.user);
 
     if (!gambler) {
         return await interaction.editReply("Nem tom te ki vagy és nem tudlak felvenni, mint fogadó. Szólj a gazdámnak, mert valami gebasz van.");
@@ -142,7 +142,7 @@ async function betMatch(interaction: ChatInputCommandInteraction) {
     const bets = await betApi.getBets(match_id);
 
     const winnerString = winner === 'DRAW' ? 'Döntetlen' : "Győztes: " + (winner === 'A' ? match.teamA : match.teamB);
-    const newBalance = await betApi.getGambler(interaction.user.username).then(gambler => gambler?.balance);
+    const newBalance = await betApi.getGambler(interaction.user).then(gambler => gambler?.balance);
     const confirmContent = executedCommand +
         `## Sikeres fogadás - ${winnerString} - Összeg: $${bet_amount}.- \n` +
         `### Fogadás utáni egyenleged: $${newBalance}.-`;

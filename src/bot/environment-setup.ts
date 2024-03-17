@@ -1,5 +1,5 @@
 import { botConfig } from './botConfig';
-import { BetAPI, BetApiSqlize } from '../bet';
+import { BetAPI, BetApiSeqelize } from '../bet';
 import { MockBetApi } from '../bet';
 import { Sequelize } from 'sequelize-typescript';
 
@@ -27,7 +27,7 @@ async function getBetApiInstance(): Promise<BetAPI> {
                     console.error(`Unable to connect to the SQLite database "${botConfig.SQLITE_FILE}":`, error);
                 }
 
-                return await (new BetApiSqlize(sqlize)).init();
+                return await (new BetApiSeqelize(sqlize)).init();
 
             } else if (botConfig.SQL_HOST && botConfig.SQL_PORT && botConfig.SQL_USER && botConfig.SQL_PASSWORD && botConfig.SQL_DATABASE) {
                 // TODO: setup sql

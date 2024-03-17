@@ -71,15 +71,15 @@ export function getWinnerAutocompleteForMatch(match: Match | undefined): Autocom
 
     return [
         {
-            name: match.teamA,
+            name: "Team 'A': " + match.teamA,
             value: "A"
         },
         {
-            name: match.teamB,
+            name: " Team 'B':" + match.teamB,
             value: "B"
         },
         {
-            name: "Döntetlen",
+            name: "DRAW: Döntetlen",
             value: "DRAW"
         }
     ];

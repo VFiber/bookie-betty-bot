@@ -84,7 +84,7 @@ export interface BetAPI {
      * Get a user by username
      * @param username
      */
-    getGambler(username: string): Promise<Gambler>;
+    getGambler(username: User): Promise<Gambler>;
 
     /**
      * Add an amount to a user's balance

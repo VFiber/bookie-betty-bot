@@ -9,9 +9,8 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
     const user = interaction.user;
-    const userName = user.username;
 
-    const gambler = await betApi.getGambler(userName);
+    const gambler = await betApi.getGambler(user);
 
     if (!gambler) {
         return interaction.reply({

@@ -85,7 +85,17 @@ export class MockBetApi implements BetAPI {
         {
             username: 'vfiber',
             balance: 90,
-            betCount: 1
+            betCount: 1,
+            accentColor: undefined,
+            avatar: null,
+            avatarDecoration: null,
+            banner: undefined,
+            bot: false,
+            discriminator: '',
+            flags: null,
+            globalName: "Fiber",
+            id: '123165465654',
+            system: false
         }
     ];
 
@@ -189,8 +199,8 @@ export class MockBetApi implements BetAPI {
         return Promise.resolve(this.matches[index]);
     }
 
-    async getGambler(username: string): Promise<Gambler> {
-        return this.gamblers.find(gambler => gambler.username === username) || this.createGambler(username);
+    async getGambler(user: User): Promise<Gambler> {
+        return this.gamblers.find(gambler => gambler.username === user.username) || this.createGambler(user);
     }
 
     async addToGamblerBalance(username: string, amount: number): Promise<boolean> {

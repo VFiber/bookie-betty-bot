@@ -1,2 +1,2 @@
 export * from './bet-api.mock';
-export * from './bet-api.sqlize';
+export * from './bet-api.seqelize';

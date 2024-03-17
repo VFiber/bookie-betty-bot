@@ -10,13 +10,15 @@ type DeployCommandsProps = {
     guildId: string;
 };
 
-
 export async function redeployGuildCommands(guild: Guild) {
+    await removeGuildCommands(guild);
+    await deployCommands({guildId: guild.id});
+}
+
+export async function removeGuildCommands(guild: Guild) {
     await rest.put(Routes.applicationGuildCommands(botConfig.DISCORD_CLIENT_ID, guild.id), {body: []})
         .then(() => console.log('Successfully deleted all guild commands.'))
         .catch(console.error);
-
-    await deployCommands({guildId: guild.id});
 }
 
 export async function deployCommands({guildId}: DeployCommandsProps) {

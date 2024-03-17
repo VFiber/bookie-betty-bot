@@ -1,4 +1,4 @@
-import { User } from 'discord.js';
+import { Snowflake, UserFlagsBitField } from 'discord.js';
 
 export interface Championship {
     id?: number;
@@ -99,7 +99,20 @@ export interface MatchWithBets extends Match {
     bets: MatchBet[];
 }
 
-export interface Gambler extends User {
+export interface Gambler {
+    // discord.js User
+    accentColor: number | null | undefined;
+    avatar: string | null;
+    avatarDecoration: string | null;
+    banner: string | null | undefined;
+    bot: boolean;
+    discriminator: string;
+    flags: Readonly<UserFlagsBitField> | null;
+    globalName: string | null;
+    id: Snowflake;
+    system: boolean;
+    username: string;
+
     balance: number;
     betCount: number;
 }
